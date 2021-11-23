@@ -99,26 +99,6 @@ fn calc_M_after_shock(kappa: &f64, M1: &f64) -> f64 {
     println!("下流M2 = {:.3}", M2);
     return M2;   
 }
-fn calc_M_super_from_AAc(kappa : &f64, AAc:&f64) -> f64{
-    let mut M :f64 = 1.0;
-    while *AAc - ( 1.0 / M * (( (kappa - 1.0) * M.powf(2.0) + 2.0) / (kappa + 1.0)).powf( (kappa + 1.0 )/( 2.0*(kappa - 1.0) )))
-     > 1.0e-6
-    {
-        M += 0.01;
-    }
-    println!("超音速のM = {:.3}", M);
-    return M;
-}
-fn calc_M_sub_from_AAc(kappa : &f64, AAc:&f64) -> f64{
-    let mut M :f64 = 0.0;
-    while *AAc - ( 1.0 / M * (( (kappa - 1.0) * M.powf(2.0) + 2.0) / (kappa + 1.0)).powf( (kappa + 1.0 )/( 2.0*(kappa - 1.0) )))
-     > 1.0e-6
-    {
-        M += 0.01;
-    }
-    println!("亜音速のM = {:.3}", M);
-    return M;
-}
 fn calc_sub_sonic_M2_from_M1_by_AA(kappa: &f64, M1: &f64, A2A1: &f64) -> f64 {
     let mut M2 :f64 = 1.0;
     while (
@@ -182,13 +162,13 @@ fn main() -> Result<(), Box<std::error::Error>>{
         println!("全域で亜音速");
         pep0 = PbP0;
         //M0 = 
-        Me = calc_M_sub_from_AAc(&kappa, &AeAc);
+        Me = calc_sub_sonic_M2_from_M1_by_AA(&kappa, &Mth, &AeAc);
     }
     else if PbP0 == pdp0 {
         println!("スロートで音速、その他で亜音速");
         pep0 = PbP0;
         Mth = 1.0;
-        Me = calc_M_sub_from_AAc(&kappa, &AeAc);
+        Me = calc_sub_sonic_M2_from_M1_by_AA(&kappa, &Mth, &AeAc);
     }
     else if php0 < PbP0 && PbP0 < pdp0 {
         println!("非等エントロピー");
@@ -206,22 +186,22 @@ fn main() -> Result<(), Box<std::error::Error>>{
     else if php0 == PbP0 { 
         println!("出口に垂直衝撃波");
         Mth = 1.0;
-        Me = calc_M_super_from_AAc(&kappa, &AeAc);
+        Me = calc_super_sonic_M2_from_M1_by_AA(&kappa, &Mth, &AeAc);
     }
     else if pjp0 < PbP0 && PbP0 < php0 {
         println!("過膨張噴流");
         Mth = 1.0;
-        Me = calc_M_super_from_AAc(&kappa, &AeAc);
+        Me = calc_super_sonic_M2_from_M1_by_AA(&kappa, &Mth, &AeAc);
     }
     else if pjp0 == PbP0 {
         println!("適正膨張");
         Mth = 1.0;        
-        Me = calc_M_super_from_AAc(&kappa, &AeAc);
+        Me = calc_super_sonic_M2_from_M1_by_AA(&kappa, &Mth, &AeAc);
     } 
     else if PbP0 < pjp0 {
         println!("不足膨張");
         Mth = 1.0;
-        Me = calc_M_super_from_AAc(&kappa, &AeAc);
+        Me = calc_super_sonic_M2_from_M1_by_AA(&kappa, &Mth, &AeAc);
     }
 
     //ここから格子計算
