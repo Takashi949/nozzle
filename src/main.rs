@@ -216,7 +216,7 @@ fn main() -> Result<(), Box<std::error::Error>>{
     }
 
     //ここから格子計算
-    const N : usize =  256;
+    const N : usize =  256 * 2;
     let mut Mac_Array : [f64; N] = [0.0; N];
     Mac_Array[0] = Mth;
     if isIsentropic {
@@ -235,7 +235,7 @@ fn main() -> Result<(), Box<std::error::Error>>{
 
     //結果の出力
     println!("Me = {:.3}", Me);
-    let mut f = std::fs::File::create("./out.csv")?;
+    let mut f = std::fs::File::create(format!("./{}_{}_{}.csv", pe, Me, N))?;
     for i in 0 .. N {
        writeln!(f, "{},{}",i, Mac_Array[i])?;
     }
