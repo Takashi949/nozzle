@@ -165,7 +165,7 @@ fn main() -> Result<(), Box<std::error::Error>>{
     let php0 = calc_ph_by_p0(&kappa, &PbP0);      
 
     let mut Me = 0.0;
-    let mut M0 = 0.0;
+    let mut Mth = 0.0;
     let mut isIsentropic = true;
     if pdp0 < PbP0 && PbP0 < 1.0 {
         println!("全域で亜音速");
@@ -176,28 +176,28 @@ fn main() -> Result<(), Box<std::error::Error>>{
     else if PbP0 == pdp0 {
         println!("スロートで音速、その他で亜音速");
         pep0 = PbP0;
-        M0 = 1.0;
+        Mth = 1.0;
         Me = calc_M_sub_from_AAc(&kappa, &AeAc);
     }
 
     else if php0 == PbP0 {
         println!("出口に垂直衝撃波");
-        M0 = 1.0;
+        Mth = 1.0;
         Me = calc_M_super_from_AAc(&kappa, &AeAc);
     }
     else if pjp0 < PbP0 && PbP0 < php0 {
         println!("過膨張噴流");
-        M0 = 1.0;
+        Mth = 1.0;
         Me = calc_M_super_from_AAc(&kappa, &AeAc);
     }
     else if pjp0 == PbP0 {
         println!("適正膨張");
-        M0 = 1.0;        
+        Mth = 1.0;        
         Me = calc_M_super_from_AAc(&kappa, &AeAc);
     } 
     else if PbP0 < pjp0 {
         println!("不足膨張");
-        M0 = 1.0;
+        Mth = 1.0;
         Me = calc_M_super_from_AAc(&kappa, &AeAc);
     }
 
@@ -206,7 +206,7 @@ fn main() -> Result<(), Box<std::error::Error>>{
         println!("ノズルの末広部に垂直衝撃波");
         isIsentropic = false;
 
-        M0 = 1.0;
+        Mth = 1.0;
         let M1 = calc_M_before_shock(&kappa, &PbP0);
         let M2 = calc_M_after_shock(&kappa, &M1);
         let AmAc = calc_AAc(&kappa, &M1);
@@ -218,7 +218,7 @@ fn main() -> Result<(), Box<std::error::Error>>{
     //ここから格子計算
     const N : usize =  256;
     let mut Mac_Array : [f64; N] = [0.0; N];
-    Mac_Array[0] = Me;
+    Mac_Array[0] = Mth;
     if isIsentropic {
         let dx = &nozzle.Le / N as f64;
         for i in 1..N {
@@ -237,7 +237,7 @@ fn main() -> Result<(), Box<std::error::Error>>{
     println!("Me = {:.3}", Me);
     let mut f = std::fs::File::create("./out.csv")?;
     for i in 0 .. N {
-       writeln!(f, "{}", Mac_Array[i])?;
+       writeln!(f, "{},{}",i, Mac_Array[i])?;
     }
     f.flush()?;
     Ok(())
