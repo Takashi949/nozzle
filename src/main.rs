@@ -17,6 +17,15 @@ impl Nozzle{
     fn new(Dcm:f64, Dem:f64, Lem:f64) -> Nozzle {
         Nozzle {Dc : Dcm, De: Dem, Le: Lem, Ae: 0.0, Ac: 0.0}
     }
+    fn calc_x (&self, AAc: &f64) -> f64 {
+        let mut x = 0.0;
+        while ( self.calcAx(x) / self.Ac - AAc ) < 1.0e-6
+        {
+            x += 0.001;
+        }  
+        println!("x = {:.3}[m]", x);
+        return x;
+    }
 
     fn init(&mut self){
         self.Ae = std::f64::consts::PI / 4.0 * self.De.powf(2.0); 
@@ -35,6 +44,7 @@ fn calcTc(T0: &f64, gammma : &f64 ) -> f64{
     println!("T* = {:.2}[K]", Tc);
     return Tc;
 }
+
 fn calc_pd_by_p0(kappa: &f64, AeAc: &f64) -> f64{
     let mut pdp0:f64 = 0.528;
     while AeAc - ( (kappa - 1.0) / 2.0 * ( 2.0 / ( kappa + 1.0 ) ).powf( ( kappa + 1.0 )/( kappa - 1.0) )
@@ -66,8 +76,25 @@ fn calc_ph_by_p0 (kappa: &f64, PbP0: &f64) -> f64{
 }
 fn calc_M (kappa : &f64, pp0: &f64) -> f64 {
     let M = (2.0/(kappa - 1.0)*(pp0.powf((1.0 - kappa)/kappa) -1.0)).powf(0.5);
-    println!("Me = {}", M);
+    println!("Me = {:.3}", M);
     return M;
+} 
+fn calc_M_before_shock(kappa: &f64, PeP0: &f64) -> f64 {
+    let mut M1 : f64 = 1.0;
+    while (
+            ((kappa + 1.0) * M1.powf(2.0) / ((kappa - 1.0) * M1.powf(2.0) + 2.0)).powf(kappa / (kappa - 1.0))
+          * ((kappa + 1.0)/(2.0 * kappa *  M1.powf(2.0) - (kappa - 1.0) )).powf( 1.0/(kappa -1.0) )
+          ) - PeP0 > 1.0e-6
+    {
+        M1 += 0.01;   
+    }
+    println!("上流M1 = {:.3}", M1);
+    return M1;
+}
+fn calc_M_after_shock(kappa: &f64, M1: &f64) -> f64 {
+    let M2 = ( ((kappa -1.0) * M1.powf(2.0) + 2.0) / (2.0 * kappa * M1.powf(2.0) - (kappa - 1.0)) ).powf(0.5);
+    println!("下流M2 = {:.3}", M2);
+    return M2;   
 }
 fn calc_M_super_from_AAc(kappa : &f64, AAc:&f64) -> f64{
     let mut M :f64 = 1.0;
@@ -89,11 +116,28 @@ fn calc_M_sub_from_AAc(kappa : &f64, AAc:&f64) -> f64{
     println!("亜音速のM = {:.3}", M);
     return M;
 }
+fn calc_M2_from_M1_by_AA(kappa: &f64, M1: &f64, A2A1: &f64) -> f64 {
+    let mut M2 :f64 = 1.0;
+    while (
+         M1 / M2 * ( ( (kappa - 1.0) * M2.powf(2.0) + 2.0 )/( (kappa - 1.0) * M1.powf(2.0) + 2.0 ) ).powf( (kappa + 1.0)/(2.0 * (kappa - 1.0)) )
+         ) - A2A1 < 1.0e-6
+    {
+        M2 -= 0.001;
+    }
+    //println!("M2 = {:.3}", M2);
+    return M2;
+}
+fn calc_AAc(kappa : &f64, M: &f64) -> f64 {
+    let AAc = 1.0 / M * ( ((kappa - 1.0)*M.powf(2.0) + 2.0)/ (kappa + 1.0)).powf( (kappa + 1.0)/(2.0 * (kappa - 1.0)) );
+    println!("A/Ac = {:.3}", AAc);
+    return AAc;
+}
+
 fn main() {
     let mut nozzle = Nozzle::new(1.0e-2, 1.5e-2, 2.0e-2);
     nozzle.init();
-    //let AeAc = &nozzle.Ae / &nozzle.Ac;
-    let AeAc = 2.403;
+    let AeAc = &nozzle.Ae / &nozzle.Ac;
+    //let AeAc = 2.403;
 
     let kappa : f64 = 1.40;
     let Mw = 28.8;
@@ -101,9 +145,9 @@ fn main() {
     let R = RR/Mw;
     println!("R = {:.3}[kJ/kgK]", R/1000.0);
 
-    let P0 : f64 = 600.0e3;//Pa
+    let P0 : f64 = 160.0e3;//Pa
     let T0 : f64 = 290.0;// + 273.15;//K
-    let Pa = 102.0e3;//Pa
+    let Pa = 101.325e3;//Pa
 
     let pc = calcPc(&P0, &kappa);
     let Tc = calcTc(&T0, &kappa);
@@ -118,7 +162,7 @@ fn main() {
     let php0 = calc_ph_by_p0(&kappa, &PbP0);      
 
     let mut Me = 0.0;
-
+    let mut isIsentropic = true;
     if pdp0 < PbP0 && PbP0 < 1.0 {
         pep0 = PbP0;
         Me = calc_M_sub_from_AAc(&kappa, &AeAc);
@@ -129,10 +173,7 @@ fn main() {
         Me = calc_M_sub_from_AAc(&kappa, &AeAc);
         println!("スロートで音速、その他で亜音速");
     }
-    else if php0 < PbP0 && PbP0 < pdp0 {
-        println!("非等エントロピー");
-        println!("ノズルの末広部に垂直衝撃波");
-    }
+
     else if php0 == PbP0 {
         Me = calc_M_super_from_AAc(&kappa, &AeAc);
         println!("出口に垂直衝撃波");
@@ -150,11 +191,25 @@ fn main() {
         println!("不足膨張");
     }
 
+    else if php0 < PbP0 && PbP0 < pdp0 {
+        println!("非等エントロピー");
+        println!("ノズルの末広部に垂直衝撃波");
+        isIsentropic = false;
+
+        let M1 = calc_M_before_shock(&kappa, &PbP0);
+        let M2 = calc_M_after_shock(&kappa, &M1);
+        let AmAc = calc_AAc(&kappa, &M1);
+        let xM = nozzle.calc_x(&AmAc);
+        let AeAm = AeAc / AmAc;
+        Me = calc_M2_from_M1_by_AA(&kappa, &M2, &AeAm);
+    }
+    println!("Me = {:.3}", Me);
+    /*
     println!("pe = {:.2}[kPa]", pe/1000.0);
     let ue = ( 2.0 * kappa / ( kappa - 1.0) * R * T0 * ( 1.0 - ( pe / P0 ).powf( ( kappa - 1.0 ) / kappa ) ) ).powf(0.5);
     let tc = Tc * ( kappa + 1.0 ) / 2.0;
 
     let ae = ue / Me;
-
     println!("ue = {:.2}[m/s]     ae = {:.2}[m/s]    Me = {:.2}", ue, ae, Me);
+    */
 }
