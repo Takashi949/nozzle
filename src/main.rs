@@ -139,7 +139,7 @@ fn main() -> Result<(), Box<std::error::Error>>{
     let R = RR/Mw;
     println!("R = {:.3}[kJ/kgK]", R/1000.0);
 
-    let P0 : f64 = 460.0e3;//Pa
+    let P0 : f64 = 160.0e3;//Pa
     let T0 : f64 = 290.0;// + 273.15;//K
     let Pa = 101.325e3;//Pa
 
@@ -157,87 +157,90 @@ fn main() -> Result<(), Box<std::error::Error>>{
 
     let mut Me = 0.0;
     let mut Mth = 0.0;
-    let mut isIsentropic = true;
-    if pdp0 < PbP0 && PbP0 < 1.0 {
-        println!("全域で亜音速");
-        pep0 = PbP0;
-        //M0 = 
-        Me = calc_sub_sonic_M2_from_M1_by_AA(&kappa, &Mth, &AeAc);
-    }
-    else if PbP0 == pdp0 {
-        println!("スロートで音速、その他で亜音速");
-        pep0 = PbP0;
-        Mth = 1.0;
-        Me = calc_sub_sonic_M2_from_M1_by_AA(&kappa, &Mth, &AeAc);
-    }
-    else if php0 < PbP0 && PbP0 < pdp0 {
-        println!("非等エントロピー");
-        println!("ノズルの末広部に垂直衝撃波");
-        isIsentropic = false;
 
-        Mth = 1.0;
-        let M1 = calc_M_before_shock(&kappa, &PbP0);
-        let M2 = calc_M_after_shock(&kappa, &M1);
-        let AmAc = calc_AAc(&kappa, &M1);
-        let xM = nozzle.calc_x(&AmAc);
-        let AeAm = AeAc / AmAc;
-        Me = calc_sub_sonic_M2_from_M1_by_AA(&kappa, &M2, &AeAm);
+    let mut isIsentropic = true;
+
+    //衝撃波がある場合
+    let mut AmAc = 0.0; 
+
+    if pdp0 <= PbP0 && PbP0 < 1.0 {
+        //亜音速流
+        pep0 = PbP0;
+        if (pdp0 < PbP0 && PbP0 < 1.0){
+            println!("全域で亜音速");
+            //******************************
+            //FIXME             Mth = 0.1;
+            //*****************************
+        }
+        else {
+            println!("スロートで音速、その他で亜音速");
+            Mth = 1.0;
+        }
+        Me = calc_sub_sonic_M2_from_M1_by_AA(&kappa, &Mth, &AeAc);
     }
-    else if php0 == PbP0 { 
-        println!("出口に垂直衝撃波");
+    else{ 
+        //スロートで音速
         Mth = 1.0;
-        Me = calc_super_sonic_M2_from_M1_by_AA(&kappa, &Mth, &AeAc);
-    }
-    else if pjp0 < PbP0 && PbP0 < php0 {
-        println!("過膨張噴流");
-        Mth = 1.0;
-        Me = calc_super_sonic_M2_from_M1_by_AA(&kappa, &Mth, &AeAc);
-    }
-    else if pjp0 == PbP0 {
-        println!("適正膨張");
-        Mth = 1.0;        
-        Me = calc_super_sonic_M2_from_M1_by_AA(&kappa, &Mth, &AeAc);
-    } 
-    else if PbP0 < pjp0 {
-        println!("不足膨張");
-        Mth = 1.0;
-        Me = calc_super_sonic_M2_from_M1_by_AA(&kappa, &Mth, &AeAc);
+        Me = calc_super_sonic_M2_from_M1_by_AA(&kappa, &Mth, &AeAc);//衝撃波がある場合は上書きされる
+        if php0 < PbP0 && PbP0 < pdp0 {
+            println!("非等エントロピー");
+            println!("ノズルの末広部に垂直衝撃波");
+            isIsentropic = false;
+
+            let M1 = calc_M_before_shock(&kappa, &PbP0);
+            let M2 = calc_M_after_shock(&kappa, &M1);
+            AmAc = calc_AAc(&kappa, &M1);//衝撃波発生位置の断面積比
+            let xM = nozzle.calc_x(&AmAc);//衝撃波の発生位置
+            let AeAm = AeAc / AmAc;
+            Me = calc_sub_sonic_M2_from_M1_by_AA(&kappa, &M2, &AeAm);
+        }
+        else if php0 == PbP0 { 
+            println!("出口に垂直衝撃波");
+        }
+        else if pjp0 < PbP0 && PbP0 < php0 {
+            println!("過膨張噴流");
+        }
+        else if pjp0 == PbP0 {
+            println!("適正膨張");
+        } 
+        else if PbP0 < pjp0 {
+            println!("不足膨張");
+        }
     }
 
     //ここから格子計算
     const N : usize =  256 * 2;
     let mut Mac_Array : [f64; N] = [0.0; N];
     Mac_Array[0] = Mth;
-    if isIsentropic {
-        let dx = &nozzle.Le / N as f64;
-        for i in 1..N {
-            /*
-            let A2A1 = nozzle.calcAx(dx * i as f64) / nozzle.calcAx(dx * (i - 1) as f64);
-            let kyokushoM = calc_M2_from_M1_by_AA(&kappa, &Mac_Array[i - 1], &A2A1);
-            */
+    let dx = &nozzle.Le / N as f64;
 
-            let A2Ac = nozzle.calcAx(dx * i as f64) / nozzle.Ac;
-            let mut kyokushoM;
-            if Mth >= 1.0 && isIsentropic {
-                //等エントロピーかつスロートで音速
-                kyokushoM = calc_super_sonic_M2_from_M1_by_AA(&kappa, &Mth, &A2Ac);
-            }
-            else if Mth < 1.0 && isIsentropic{
-                //等エントロピーだけどスロートで音速になっていない
-                kyokushoM = calc_sub_sonic_M2_from_M1_by_AA(&kappa, &Mth, &A2Ac);
+    for i in 1..N {
+        let AxAc = nozzle.calcAx(dx * i as f64) / nozzle.Ac;
+        let mut kyokushoM = 0.0; 
+        if Me < 1.0 && isIsentropic{
+            //等エントロピー、出口で亜音速
+            kyokushoM = calc_sub_sonic_M2_from_M1_by_AA(&kappa, &Mth, &AxAc);
+        }
+        else if isIsentropic {
+            //等エントロピー、出口で超音速
+            kyokushoM = calc_super_sonic_M2_from_M1_by_AA(&kappa, &Mth, &AxAc);
+        }
+        else {
+            //非等エントロピー
+            if AxAc < AmAc {
+                //衝撃波の上流 
+                kyokushoM = calc_super_sonic_M2_from_M1_by_AA(&kappa, &Mth, &AxAc);
             }
             else {
-                //非等エントロピー
-                kyokushoM = 20220.0;
+                //衝撃波の下流
+                let AxAm = AxAc / AmAc;
+                kyokushoM = calc_sub_sonic_M2_from_M1_by_AA(&kappa, &Mth, &AxAm);            
             }
-
-            Mac_Array[i] = kyokushoM;
-            //print!("{},", A2A1);
-            //println!("{}",i);
         }
-    }
-    else {
-        println!("衝撃波浜田計算できない");
+
+        Mac_Array[i] = kyokushoM;
+        //print!("{},", A2A1);
+        //println!("{}",i);
     }
 
     //結果の出力
@@ -248,12 +251,4 @@ fn main() -> Result<(), Box<std::error::Error>>{
     }
     f.flush()?;
     Ok(())
-    /*
-    println!("pe = {:.2}[kPa]", pe/1000.0);
-    let ue = ( 2.0 * kappa / ( kappa - 1.0) * R * T0 * ( 1.0 - ( pe / P0 ).powf( ( kappa - 1.0 ) / kappa ) ) ).powf(0.5);
-    let tc = Tc * ( kappa + 1.0 ) / 2.0;
-
-    let ae = ue / Me;
-    println!("ue = {:.2}[m/s]     ae = {:.2}[m/s]    Me = {:.2}", ue, ae, Me);
-    */
 }
