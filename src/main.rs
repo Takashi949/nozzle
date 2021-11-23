@@ -1,3 +1,6 @@
+use std::fs::File;
+use std::io::{self, BufRead, Write, BufReader};
+
 struct Nozzle{
     Dc : f64,
     De : f64,
@@ -133,7 +136,7 @@ fn calc_AAc(kappa : &f64, M: &f64) -> f64 {
     return AAc;
 }
 
-fn main() {
+fn main() -> Result<(), Box<std::error::Error>>{
     let mut nozzle = Nozzle::new(1.0e-2, 1.5e-2, 2.0e-2);
     nozzle.init();
     let AeAc = &nozzle.Ae / &nozzle.Ac;
@@ -213,7 +216,7 @@ fn main() {
     }
 
     //ここから格子計算
-    const N : usize =  1024;
+    const N : usize =  256;
     let mut Mac_Array : [f64; N] = [0.0; N];
     Mac_Array[0] = Me;
     if isIsentropic {
@@ -223,6 +226,7 @@ fn main() {
             let kyokushoM = calc_M2_from_M1_by_AA(&kappa, &Mac_Array[i - 1], &A2A1);
             Mac_Array[i] = kyokushoM;
             //print!("{},", kyokushoM);
+            //println!("{}",i);
         }
     }
     else {
@@ -231,8 +235,12 @@ fn main() {
 
     //結果の出力
     println!("Me = {:.3}", Me);
-    let mut f = std::fs::File::create("./out.csv");
-
+    let mut f = std::fs::File::create("./out.csv")?;
+    for i in 0 .. N {
+       writeln!(f, "{}", Mac_Array[i])?;
+    }
+    f.flush()?;
+    Ok(())
     /*
     println!("pe = {:.2}[kPa]", pe/1000.0);
     let ue = ( 2.0 * kappa / ( kappa - 1.0) * R * T0 * ( 1.0 - ( pe / P0 ).powf( ( kappa - 1.0 ) / kappa ) ) ).powf(0.5);
