@@ -79,7 +79,7 @@ fn calc_ph_by_p0 (kappa: &f64, PbP0: &f64) -> f64{
 }
 fn calc_M (kappa : &f64, pp0: &f64) -> f64 {
     let M = (2.0/(kappa - 1.0)*(pp0.powf((1.0 - kappa)/kappa) -1.0)).powf(0.5);
-    println!("Me = {:.3}", M);
+    println!("M = {:.3}", M);
     return M;
 } 
 fn calc_M_before_shock(kappa: &f64, PeP0: &f64) -> f64 {
@@ -139,15 +139,16 @@ fn main() -> Result<(), Box<std::error::Error>>{
     let R = RR/Mw;
     println!("R = {:.3}[kJ/kgK]", R/1000.0);
 
-    let P0 : f64 = 160.0e3;//Pa
+    let P0 : f64 = 105.0e3;//全域亜音速
+    //let P0 = 150.0e3;//衝撃波
     let T0 : f64 = 290.0;// + 273.15;//K
     let Pa = 101.325e3;//Pa
 
     let pc = calcPc(&P0, &kappa);
     let Tc = calcTc(&T0, &kappa);
-    let Rowc = P0 / (R*T0);
 
     let PbP0 = Pa / P0;
+    println!("PbP0 = {:.3}", PbP0);
     let mut pep0 = 0.0;
     let mut pe = 0.0;
 
@@ -168,9 +169,7 @@ fn main() -> Result<(), Box<std::error::Error>>{
         pep0 = PbP0;
         if (pdp0 < PbP0 && PbP0 < 1.0){
             println!("全域で亜音速");
-            //******************************
-            //FIXME             Mth = 0.1;
-            //*****************************
+            Mth = calc_M(&kappa, &PbP0);
         }
         else {
             println!("スロートで音速、その他で亜音速");
