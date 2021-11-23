@@ -224,8 +224,6 @@ fn main() -> Result<(), Box<std::error::Error>>{
         Me = calc_M_super_from_AAc(&kappa, &AeAc);
     }
 
-
-
     //ここから格子計算
     const N : usize =  256 * 2;
     let mut Mac_Array : [f64; N] = [0.0; N];
