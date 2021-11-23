@@ -145,7 +145,7 @@ fn main() {
     let R = RR/Mw;
     println!("R = {:.3}[kJ/kgK]", R/1000.0);
 
-    let P0 : f64 = 160.0e3;//Pa
+    let P0 : f64 = 460.0e3;//Pa
     let T0 : f64 = 290.0;// + 273.15;//K
     let Pa = 101.325e3;//Pa
 
@@ -162,33 +162,40 @@ fn main() {
     let php0 = calc_ph_by_p0(&kappa, &PbP0);      
 
     let mut Me = 0.0;
+    let mut M0 = 0.0;
     let mut isIsentropic = true;
     if pdp0 < PbP0 && PbP0 < 1.0 {
-        pep0 = PbP0;
-        Me = calc_M_sub_from_AAc(&kappa, &AeAc);
         println!("全域で亜音速");
+        pep0 = PbP0;
+        //M0 = 
+        Me = calc_M_sub_from_AAc(&kappa, &AeAc);
     }
     else if PbP0 == pdp0 {
-        pep0 = PbP0;
-        Me = calc_M_sub_from_AAc(&kappa, &AeAc);
         println!("スロートで音速、その他で亜音速");
+        pep0 = PbP0;
+        M0 = 1.0;
+        Me = calc_M_sub_from_AAc(&kappa, &AeAc);
     }
 
     else if php0 == PbP0 {
-        Me = calc_M_super_from_AAc(&kappa, &AeAc);
         println!("出口に垂直衝撃波");
+        M0 = 1.0;
+        Me = calc_M_super_from_AAc(&kappa, &AeAc);
     }
     else if pjp0 < PbP0 && PbP0 < php0 {
-        Me = calc_M_super_from_AAc(&kappa, &AeAc);
         println!("過膨張噴流");
+        M0 = 1.0;
+        Me = calc_M_super_from_AAc(&kappa, &AeAc);
     }
     else if pjp0 == PbP0 {
-        Me = calc_M_super_from_AAc(&kappa, &AeAc);
         println!("適正膨張");
+        M0 = 1.0;        
+        Me = calc_M_super_from_AAc(&kappa, &AeAc);
     } 
     else if PbP0 < pjp0 {
-        Me = calc_M_super_from_AAc(&kappa, &AeAc);
         println!("不足膨張");
+        M0 = 1.0;
+        Me = calc_M_super_from_AAc(&kappa, &AeAc);
     }
 
     else if php0 < PbP0 && PbP0 < pdp0 {
@@ -196,6 +203,7 @@ fn main() {
         println!("ノズルの末広部に垂直衝撃波");
         isIsentropic = false;
 
+        M0 = 1.0;
         let M1 = calc_M_before_shock(&kappa, &PbP0);
         let M2 = calc_M_after_shock(&kappa, &M1);
         let AmAc = calc_AAc(&kappa, &M1);
@@ -203,7 +211,28 @@ fn main() {
         let AeAm = AeAc / AmAc;
         Me = calc_M2_from_M1_by_AA(&kappa, &M2, &AeAm);
     }
+
+    //ここから格子計算
+    const N : usize =  1024;
+    let mut Mac_Array : [f64; N] = [0.0; N];
+    Mac_Array[0] = Me;
+    if isIsentropic {
+        let dx = &nozzle.Le / N as f64;
+        for i in 1..N {
+            let A2A1 = nozzle.calcAx(dx * i as f64) / nozzle.calcAx(dx * (i - 1) as f64);
+            let kyokushoM = calc_M2_from_M1_by_AA(&kappa, &Mac_Array[i - 1], &A2A1);
+            Mac_Array[i] = kyokushoM;
+            //print!("{},", kyokushoM);
+        }
+    }
+    else {
+        println!("衝撃波浜田計算できない");
+    }
+
+    //結果の出力
     println!("Me = {:.3}", Me);
+    let mut f = std::fs::File::create("./out.csv");
+
     /*
     println!("pe = {:.2}[kPa]", pe/1000.0);
     let ue = ( 2.0 * kappa / ( kappa - 1.0) * R * T0 * ( 1.0 - ( pe / P0 ).powf( ( kappa - 1.0 ) / kappa ) ) ).powf(0.5);
