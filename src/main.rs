@@ -67,7 +67,33 @@ impl Nozzle{
         println!("Ae = {:.2}[mm2]   Ath = {:.2}[mm2]", self.Ae*1.0e6, self.Ath*1.0e6);
     }
 }
-
+fn calc_sub_sonic_M2_from_M1_by_AA(kappa: &f64, M1: &f64, A2A1: &f64) -> f64 {
+    let mut M2 :f64 = 1.0;
+    while (
+         M1 / M2 * ( ( (kappa - 1.0) * M2.powf(2.0) + 2.0 )/( (kappa - 1.0) * M1.powf(2.0) + 2.0 ) ).powf( (kappa + 1.0)/(2.0 * (kappa - 1.0)) )
+         ) - A2A1 < ERROR
+    {
+        M2 -= 0.001;
+    }
+    //println!("M2 = {:.3}", M2);
+    return M2;
+}
+fn calc_super_sonic_M2_from_M1_by_AA(kappa: &f64, M1: &f64, A2A1: &f64) -> f64 {
+    let mut M2 :f64 = 1.0;
+    while (
+         M1 / M2 * ( ( (kappa - 1.0) * M2.powf(2.0) + 2.0 )/( (kappa - 1.0) * M1.powf(2.0) + 2.0 ) ).powf( (kappa + 1.0)/(2.0 * (kappa - 1.0)) )
+         ) - A2A1 < ERROR
+    {
+        M2 += 0.001;
+    }
+    //println!("M2 = {:.3}", M2);
+    return M2;
+}
+fn calc_AAc(kappa : &f64, M: &f64) -> f64 {
+    let AAc = 1.0 / M * ( ((kappa - 1.0)*M.powf(2.0) + 2.0)/ (kappa + 1.0)).powf( (kappa + 1.0)/(2.0 * (kappa - 1.0)) );
+    println!("A/Ac = {:.3}", AAc);
+    return AAc;
+}
 fn siki_7_21(kappa : &f64, pdp0: &f64) -> f64{
     //pdp0からAe/A*=
     ( ( (kappa - 1.0) / 2.0 )*( 2.0 / ( kappa + 1.0 ) ).powf( ( kappa + 1.0 )/( kappa - 1.0) )
@@ -142,33 +168,7 @@ fn calc_M_after_shock(kappa: &f64, M1: &f64) -> f64 {
     println!("下流M2 = {:.3}", M2);
     return M2;   
 }
-fn calc_sub_sonic_M2_from_M1_by_AA(kappa: &f64, M1: &f64, A2A1: &f64) -> f64 {
-    let mut M2 :f64 = 1.0;
-    while (
-         M1 / M2 * ( ( (kappa - 1.0) * M2.powf(2.0) + 2.0 )/( (kappa - 1.0) * M1.powf(2.0) + 2.0 ) ).powf( (kappa + 1.0)/(2.0 * (kappa - 1.0)) )
-         ) - A2A1 < ERROR
-    {
-        M2 -= 0.001;
-    }
-    //println!("M2 = {:.3}", M2);
-    return M2;
-}
-fn calc_super_sonic_M2_from_M1_by_AA(kappa: &f64, M1: &f64, A2A1: &f64) -> f64 {
-    let mut M2 :f64 = 1.0;
-    while (
-         M1 / M2 * ( ( (kappa - 1.0) * M2.powf(2.0) + 2.0 )/( (kappa - 1.0) * M1.powf(2.0) + 2.0 ) ).powf( (kappa + 1.0)/(2.0 * (kappa - 1.0)) )
-         ) - A2A1 < ERROR
-    {
-        M2 += 0.001;
-    }
-    //println!("M2 = {:.3}", M2);
-    return M2;
-}
-fn calc_AAc(kappa : &f64, M: &f64) -> f64 {
-    let AAc = 1.0 / M * ( ((kappa - 1.0)*M.powf(2.0) + 2.0)/ (kappa + 1.0)).powf( (kappa + 1.0)/(2.0 * (kappa - 1.0)) );
-    println!("A/Ac = {:.3}", AAc);
-    return AAc;
-}
+
 
 fn main() -> Result<(), Box<std::error::Error>>{
     let mut nozzle = Nozzle::new(20.0e-3, 10.0e-3, 10.0e-3, 17.320508e-3, 40.0e-3);
