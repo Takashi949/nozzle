@@ -13,6 +13,13 @@ struct Nozzle{
     xe : f64,
 }
 
+#[derive(Clone, Copy, Default)]
+struct quantity{
+    x : f64,
+    Mx : f64,
+    rx :f64,
+}
+
 impl Nozzle{
     fn new(Di : f64, Dth:f64, xth : f64, De:f64, xe:f64) -> Nozzle {
         Nozzle {Di, Dth, xth, De, xe, ..Default::default()}
@@ -23,19 +30,25 @@ impl Nozzle{
 
     //先細部
     fn calc_AxC(&self, x: &f64) -> f64 {
-        let Dx = (self.De - self.Dth) * x / self.xe + self.Dth;
-        return std::f64::consts::PI / 4.0 * Dx.powf(2.0); 
+        return std::f64::consts::PI / 4.0 * (self.calc_DxC(x)).powf(2.0); 
+    }
+    fn calc_DxC(&self, x:&f64) -> f64{
+        let Dx = (self.Dth - self.Di) * x / self.xth + self.Di;
+        return Dx;
     }
     //末広部
-    fn calc_AxD(&self, x: f64) -> f64{
+    fn calc_AxD(&self, x: &f64) -> f64{
+        return std::f64::consts::PI / 4.0 * self.calc_DxD(&x).powf(2.0); 
+    }
+    fn calc_DxD(&self, x: &f64) -> f64{
         let x_xth = x - self.xth; 
         let Dx = (self.De - self.Dth) * x_xth / self.xe + self.Dth;
-        return std::f64::consts::PI / 4.0 * Dx.powf(2.0); 
+        return Dx; 
     }
 
     fn calc_xD (&self, AAc: &f64) -> f64 {
         let mut x = 0.0;
-        while ( self.calc_AxD(x) / self.Ath - AAc ) < 1.0e-6
+        while ( self.calc_AxD(&x) / self.Ath - AAc ) < 1.0e-6
         {
             x += 0.001;
         }  
@@ -144,7 +157,7 @@ fn calc_AAc(kappa : &f64, M: &f64) -> f64 {
 fn main() -> Result<(), Box<std::error::Error>>{
     let mut nozzle = Nozzle::new(20.0e-3, 10.0e-3, 10.0e-3, 40.0e-3, 40.0e-3);
     nozzle.init();
-    let AeAc = &nozzle.Ae / &nozzle.Ath;
+    let AeAth = &nozzle.Ae / &nozzle.Ath;
     //let AeAc = 2.403;
 
     let kappa : f64 = 1.40;
@@ -166,8 +179,8 @@ fn main() -> Result<(), Box<std::error::Error>>{
     let mut pep0 = 0.0;
     let mut pe = 0.0;
 
-    let pdp0 = calc_pd_by_p0(&kappa, &AeAc); 
-    let pjp0 = calc_pj_by_p0(&kappa, &AeAc); 
+    let pdp0 = calc_pd_by_p0(&kappa, &AeAth); 
+    let pjp0 = calc_pj_by_p0(&kappa, &AeAth); 
     let php0 = calc_ph_by_p0(&kappa, &PbP0);      
 
     let mut Me = 0.0;
@@ -189,12 +202,12 @@ fn main() -> Result<(), Box<std::error::Error>>{
             println!("スロートで音速、その他で亜音速");
             Mth = 1.0;
         }
-        Me = calc_sub_sonic_M2_from_M1_by_AA(&kappa, &Mth, &AeAc);
+        Me = calc_sub_sonic_M2_from_M1_by_AA(&kappa, &Mth, &AeAth);
     }
     else{ 
         //スロートで音速
         Mth = 1.0;
-        Me = calc_super_sonic_M2_from_M1_by_AA(&kappa, &Mth, &AeAc);//衝撃波がある場合は上書きされる
+        Me = calc_super_sonic_M2_from_M1_by_AA(&kappa, &Mth, &AeAth);//衝撃波がある場合は上書きされる
         if php0 < PbP0 && PbP0 < pdp0 {
             println!("非等エントロピー");
             println!("ノズルの末広部に垂直衝撃波");
@@ -204,7 +217,7 @@ fn main() -> Result<(), Box<std::error::Error>>{
             let M2 = calc_M_after_shock(&kappa, &M1);
             AmAc = calc_AAc(&kappa, &M1);//衝撃波発生位置の断面積比
             let xM = nozzle.calc_xD(&AmAc);//衝撃波の発生位置
-            let AeAm = AeAc / AmAc;
+            let AeAm = AeAth / AmAc;
             Me = calc_sub_sonic_M2_from_M1_by_AA(&kappa, &M2, &AeAm);
         }
         else if php0 == PbP0 { 
@@ -220,47 +233,66 @@ fn main() -> Result<(), Box<std::error::Error>>{
             println!("不足膨張");
         }
     }
+    println!("Mth = {:.3}", Mth);
 
     //ここから格子計算
     const N : usize =  256 * 2;
-    let mut Mac_Array : [f64; N] = [0.0; N];
-    Mac_Array[0] = Mth;
+    let mut Quans : [quantity; N] = [quantity{x:0.0, Mx:0.0, ..Default::default()}; N];
+    //let mut Mac_Array : [f64; N] = [0.0; N];
+    //Mac_Array[0] = Mth;
     let dx = &nozzle.xe / N as f64;
 
     for i in 1..N {
-        let AxAc = nozzle.calc_AxD(dx * i as f64) / nozzle.Ath;
-        let mut kyokushoM = 0.0; 
-        if Me < 1.0 && isIsentropic{
-            //等エントロピー、出口で亜音速
-            kyokushoM = calc_sub_sonic_M2_from_M1_by_AA(&kappa, &Mth, &AxAc);
-        }
-        else if isIsentropic {
-            //等エントロピー、出口で超音速
-            kyokushoM = calc_super_sonic_M2_from_M1_by_AA(&kappa, &Mth, &AxAc);
+        let x = dx * i as f64;
+        let mut Mx = 0.0;
+        let mut rx = 0.0;
+        if x <= nozzle.xth {
+            //先細部の計算
+            // 状態2:x     状態1:th
+            let AxAth = nozzle.calc_AxC(&x) / nozzle.Ath;
+            rx = nozzle.calc_DxC(&x) / 2.0;
+            Mx = calc_sub_sonic_M2_from_M1_by_AA(&kappa, &Mth, &AxAth);
         }
         else {
-            //非等エントロピー
-            if AxAc < AmAc {
-                //衝撃波の上流 
-                kyokushoM = calc_super_sonic_M2_from_M1_by_AA(&kappa, &Mth, &AxAc);
+            //末広部の計算
+            let AxAth = nozzle.calc_AxD(&x) / nozzle.Ath;
+            rx = nozzle.calc_DxD(&x) / 2.0;
+
+            if Me < 1.0 && isIsentropic{
+                //等エントロピー、出口で亜音速
+                Mx = calc_sub_sonic_M2_from_M1_by_AA(&kappa, &Mth, &AxAth);
+            }
+            else if isIsentropic {
+                //等エントロピー、出口で超音速
+                Mx = calc_super_sonic_M2_from_M1_by_AA(&kappa, &Mth, &AxAth);
             }
             else {
-                //衝撃波の下流
-                let AxAm = AxAc / AmAc;
-                kyokushoM = calc_sub_sonic_M2_from_M1_by_AA(&kappa, &Mth, &AxAm);            
+                //非等エントロピー
+                if AxAth < AmAc {
+                    //衝撃波の上流 
+                    Mx = calc_super_sonic_M2_from_M1_by_AA(&kappa, &Mth, &AxAth);
+                }
+                else {
+                    //衝撃波の下流
+                    let AxAm = AxAth / AmAc;
+                    Mx = calc_sub_sonic_M2_from_M1_by_AA(&kappa, &Mth, &AxAm);            
+                }
             }
         }
 
-        Mac_Array[i] = kyokushoM;
+        //Mac_Array[i] = kyokushoM;
         //print!("{},", A2A1);
         //println!("{}",i);
+
+        let res = quantity {x, Mx, rx};
+        Quans[i] = res;
     }
 
     //結果の出力
     println!("Me = {:.3}", Me);
     let mut f = std::fs::File::create(format!("./{:.3}_{:.3}_{:.3}.csv", Mth, Me, N))?;
     for i in 0 .. N {
-       writeln!(f, "{},{}",i, Mac_Array[i])?;
+       writeln!(f, "{},{}, {}", Quans[i].x, Quans[i].Mx, Quans[i].rx)?;
     }
     f.flush()?;
     Ok(())
