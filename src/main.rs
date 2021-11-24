@@ -256,8 +256,6 @@ fn main() -> Result<(), Box<std::error::Error>>{
     //ここから格子計算
     const N : usize =  256 * 2;
     let mut Quans : [quantity; N] = [quantity{x:0.0, Mx:0.0, ..Default::default()}; N];
-    //let mut Mac_Array : [f64; N] = [0.0; N];
-    //Mac_Array[0] = Mth;
     let dx = &nozzle.xe / N as f64;
 
     for i in 1..N {
