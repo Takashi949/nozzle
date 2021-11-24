@@ -1,4 +1,8 @@
 use std::io::Write;
+
+const ERROR :f64 = 1.0e-3;
+const delta :f64 = 1.0e-4;
+
 #[derive(Default)]
 struct Nozzle{
     Di : f64,
@@ -48,7 +52,7 @@ impl Nozzle{
 
     fn calc_xD (&self, AAc: &f64) -> f64 {
         let mut x = 0.0;
-        while ( self.calc_AxD(&x) / self.Ath - AAc ) < 1.0e-6
+        while ( self.calc_AxD(&x) / self.Ath - AAc ) < ERROR
         {
             x += 0.001;
         }  
@@ -64,8 +68,18 @@ impl Nozzle{
     }
 }
 
+fn siki_7_21(kappa : &f64, pdp0: &f64) -> f64{
+    ( ( (kappa - 1.0) / 2.0 )*( 2.0 / ( kappa + 1.0 ) ).powf( ( kappa + 1.0 )/( kappa - 1.0) )
+    / ( pdp0.powf(2.0 / kappa ) - pdp0.powf( ( kappa + 1.0 )/kappa ) )  ).powf(0.5)
+}
+fn calc_pcp0(kappa : &f64) -> f64 {
+    let pcp0 = (2.0 / (kappa + 1.0)).powf(kappa / (kappa - 1.0));
+    println!("p*/p0 = {:.3}", pcp0);
+    return pcp0;
+}
+
 fn calcPc(P0: &f64, gammma: &f64) -> f64 {
-    let pc = P0*( 2.0 / (gammma + 1.0) ).powf(gammma / (gammma - 1.0));
+    let pc = P0* calc_pcp0(gammma);
     println!("p* = {:.2}[kPa]", pc/1000.0);
     return pc;
 }
@@ -76,23 +90,19 @@ fn calcTc(T0: &f64, gammma : &f64 ) -> f64{
 }
 
 fn calc_pd_by_p0(kappa: &f64, AeAc: &f64) -> f64{
-    let mut pdp0:f64 = 0.528;
-    while AeAc - ( (kappa - 1.0) / 2.0 * ( 2.0 / ( kappa + 1.0 ) ).powf( ( kappa + 1.0 )/( kappa - 1.0) )
-            / ( pdp0.powf(2.0 / kappa ) - pdp0.powf( ( kappa + 1.0 )/kappa ) )  ).powf(0.5)
-            > 1.0e-6
+    let mut pdp0:f64 = calc_pcp0(&kappa);
+    while ( AeAc - siki_7_21(kappa, &pdp0) ).abs() > ERROR
     {
-        pdp0 += 0.01;
+        pdp0 += delta;
     }
     println!("pd/p0 = {:.3}", pdp0);
     return pdp0;
 }
 fn calc_pj_by_p0(kappa: &f64, AeAc: &f64) -> f64{
-    let mut pjp0:f64 = 0.528;
-    while AeAc - ( (kappa - 1.0) / 2.0 * ( 2.0 / ( kappa + 1.0 ) ).powf( ( kappa + 1.0 )/( kappa - 1.0) )
-            / ( pjp0.powf(2.0 / kappa ) - pjp0.powf( ( kappa + 1.0 )/kappa ) )  ).powf(0.5)
-             > 1.0e-6
+    let mut pjp0:f64 = calc_pcp0(&kappa);
+    while (AeAc - siki_7_21(kappa, &pjp0) ).abs() > ERROR
     {
-        pjp0 -= 0.01;
+        pjp0 -= delta;
     }
     println!("pj/p0 = {:.3}", pjp0);
     return pjp0;
@@ -114,7 +124,7 @@ fn calc_M_before_shock(kappa: &f64, PeP0: &f64) -> f64 {
     while (
             ((kappa + 1.0) * M1.powf(2.0) / ((kappa - 1.0) * M1.powf(2.0) + 2.0)).powf(kappa / (kappa - 1.0))
           * ((kappa + 1.0)/(2.0 * kappa *  M1.powf(2.0) - (kappa - 1.0) )).powf( 1.0/(kappa -1.0) )
-          ) - PeP0 > 1.0e-6
+          ) - PeP0 > ERROR
     {
         M1 += 0.01;   
     }
@@ -130,7 +140,7 @@ fn calc_sub_sonic_M2_from_M1_by_AA(kappa: &f64, M1: &f64, A2A1: &f64) -> f64 {
     let mut M2 :f64 = 1.0;
     while (
          M1 / M2 * ( ( (kappa - 1.0) * M2.powf(2.0) + 2.0 )/( (kappa - 1.0) * M1.powf(2.0) + 2.0 ) ).powf( (kappa + 1.0)/(2.0 * (kappa - 1.0)) )
-         ) - A2A1 < 1.0e-6
+         ) - A2A1 < ERROR
     {
         M2 -= 0.001;
     }
@@ -141,7 +151,7 @@ fn calc_super_sonic_M2_from_M1_by_AA(kappa: &f64, M1: &f64, A2A1: &f64) -> f64 {
     let mut M2 :f64 = 1.0;
     while (
          M1 / M2 * ( ( (kappa - 1.0) * M2.powf(2.0) + 2.0 )/( (kappa - 1.0) * M1.powf(2.0) + 2.0 ) ).powf( (kappa + 1.0)/(2.0 * (kappa - 1.0)) )
-         ) - A2A1 < 1.0e-6
+         ) - A2A1 < ERROR
     {
         M2 += 0.001;
     }
@@ -155,10 +165,11 @@ fn calc_AAc(kappa : &f64, M: &f64) -> f64 {
 }
 
 fn main() -> Result<(), Box<std::error::Error>>{
-    let mut nozzle = Nozzle::new(20.0e-3, 10.0e-3, 10.0e-3, 40.0e-3, 40.0e-3);
+    let mut nozzle = Nozzle::new(20.0e-3, 10.0e-3, 10.0e-3, 17.320508e-3, 40.0e-3);
     nozzle.init();
     let AeAth = &nozzle.Ae / &nozzle.Ath;
     //let AeAc = 2.403;
+    println!("AeAth = {:.3}",AeAth);
 
     let kappa : f64 = 1.40;
     let Mw = 28.8;
