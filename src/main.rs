@@ -356,7 +356,7 @@ fn main() -> Result<(), Box<std::error::Error>>{
     for q in quans {
         let mut r = 0.0;
         while r < ( q.rx * 1000.0 ) {
-            plotarea.draw_pixel((q.x * 1000.0, r), &HSLColor( 0.50 +0.5*q.Mx, 1.0, 0.5));
+            plotarea.draw_pixel((q.x * 1000.0, r), &HSLColor( 0.50 +0.3*q.Mx, 1.0, 0.5));
             r += 0.001;
         }
     }
