@@ -1,7 +1,9 @@
 use std::{io::Write, num::NonZeroI128, ops::Add};
+use plotters::prelude::*;
 
 const ERROR :f64 = 1.0e-3;
 const delta :f64 = 1.0e-4;
+const N:u64 = 1024;
 
 enum NAGARE {
     MthL1,
@@ -257,8 +259,6 @@ fn calc_Mx(nozzle : &Nozzle, kappa : &f64, PbP0: f64, nagare: NAGARE) -> Vec<qua
     println!("Me = {:.3}    Mth = {:.3}",Me, Mth);
 
     //ここから格子計算
-    const N : usize =  256 * 2;
-    //let mut Quans : [quantity; N] = [quantity{x:0.0, Mx:0.0, ..Default::default()}; N];
     let mut Quans : Vec<quantity> = Vec::new();
     let dx = &nozzle.xe / N as f64;
 
@@ -337,10 +337,35 @@ fn main() -> Result<(), Box<std::error::Error>>{
     let mut quans = calc_Mx(&nozzle, &kappa, PbP0, nagare);
 
     //結果の出力
+    let root = BitMapBackend::new("./out.png", (800, 600)).into_drawing_area();
+    root.fill(&WHITE)?;
+    let mut chart = ChartBuilder::on(&root)
+        .margin(20)
+        .x_label_area_size(10)
+        .y_label_area_size(10)
+        .build_cartesian_2d(-1f64..50f64, -1.0..50f64)?;
+    
+    chart
+        .configure_mesh()
+        .disable_x_mesh()
+        .disable_y_mesh()
+        .draw()?;
+    let plotarea = chart.plotting_area();
+    let range = plotarea.get_pixel_range();
+
+    for q in quans {
+        let mut r = 0.0;
+        while r < ( q.rx * 1000.0 ) {
+            plotarea.draw_pixel((q.x * 1000.0, r), &HSLColor( 0.50 +0.5*q.Mx, 1.0, 0.5));
+            r += 0.001;
+        }
+    }
+    /*
     let mut f = std::fs::File::create(format!("./{}.csv", PbP0))?;
     for q in quans {
        writeln!(f, "{},{}, {}", q.x, q.Mx, q.rx)?;
     }
     f.flush()?;
+    */
     Ok(())
 }
