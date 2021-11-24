@@ -1,9 +1,9 @@
-use std::{io::Write, num::NonZeroI128, ops::Add};
+use std::{io::Write, num::NonZeroI128, ops::Add, slice::Windows};
 use plotters::prelude::*;
 
 const ERROR :f64 = 1.0e-3;
 const delta :f64 = 1.0e-4;
-const N:u64 = 1024;
+const N:u64 = 512 * 2;
 
 enum NAGARE {
     MthL1,
@@ -180,7 +180,7 @@ fn calc_ph_by_p0 (kappa: &f64, AeAc: &f64) -> f64{
 }
 fn calc_M (kappa : &f64, pp0: &f64) -> f64 {
     let M = (2.0/(kappa - 1.0)*(pp0.powf((1.0 - kappa)/kappa) -1.0)).powf(0.5);
-    println!("M = {:.3}", M);
+    //println!("M = {:.3}", M);
     return M;
 } 
 
@@ -235,6 +235,7 @@ fn calc_Mx(nozzle : &Nozzle, kappa : &f64, PbP0: f64, nagare: NAGARE) -> Vec<qua
 
     //衝撃波がある場合
     let mut AmAc= 0.0;
+    let mut M2 = 0.0;
 
     match nagare {
         NAGARE::MthL1 => {
@@ -246,17 +247,17 @@ fn calc_Mx(nozzle : &Nozzle, kappa : &f64, PbP0: f64, nagare: NAGARE) -> Vec<qua
         },
         NAGARE::suehiro => {
             let M1 = calc_M_before_shock(&kappa, &PbP0);
-            let M2 = calc_M_after_shock(&kappa, &M1);
+            M2 = calc_M_after_shock(&kappa, &M1);
             AmAc = calc_AAc(&kappa, &M1);//衝撃波発生位置の断面積比
             let xM = nozzle.calc_xD(&AmAc);//衝撃波の発生位置
             let AeAm = AeAth / AmAc;
             Me = calc_sub_sonic_M2_from_M1_by_AA(&kappa, &M2, &AeAm);
         },
         _=>{
-            Me = calc_super_sonic_M2_from_M1_by_AA(&kappa, &Mth, &AeAth);//衝撃波がある場合は上書きされる
+            Me = calc_M(kappa, &PbP0);
         }
     }
-    println!("Me = {:.3}    Mth = {:.3}",Me, Mth);
+    println!("Me_max = {:.3}    Mth = {:.3}",Me, Mth);
 
     //ここから格子計算
     let mut Quans : Vec<quantity> = Vec::new();
@@ -287,7 +288,7 @@ fn calc_Mx(nozzle : &Nozzle, kappa : &f64, PbP0: f64, nagare: NAGARE) -> Vec<qua
                 else {
                     //衝撃波の下流
                     let AxAm = AxAth / AmAc;
-                    Mx = calc_sub_sonic_M2_from_M1_by_AA(&kappa, &Mth, &AxAm);            
+                    Mx = calc_sub_sonic_M2_from_M1_by_AA(&kappa, &M2, &AxAm);            
                 }
             }
             else if Me < 1.0{
@@ -299,18 +300,17 @@ fn calc_Mx(nozzle : &Nozzle, kappa : &f64, PbP0: f64, nagare: NAGARE) -> Vec<qua
                 Mx = calc_super_sonic_M2_from_M1_by_AA(&kappa, &Mth, &AxAth);
             }
         }
-
-        //Mac_Array[i] = kyokushoM;
-        //print!("{},", A2A1);
-        //println!("{}",i);
-
+        
+        if i == N-1{
+            println!("Me = {:.3}", Mx);
+        }
         let res = quantity {x, Mx, rx};
         Quans.push(res);
     }
     return Quans;
 }
 fn main() -> Result<(), Box<std::error::Error>>{
-    let mut nozzle = Nozzle::new(20.0e-3, 10.0e-3, 10.0e-3, 17.320508e-3, 40.0e-3);
+    let mut nozzle = Nozzle::new(20.0e-3, 10.0e-3, 10.0e-3, 14.1421356e-3, 40.0e-3);
     nozzle.init();
     let AeAth = &nozzle.Ae / &nozzle.Ath;
     //let AeAc = 2.403;
@@ -322,50 +322,47 @@ fn main() -> Result<(), Box<std::error::Error>>{
     let R = RR/Mw;
     println!("R = {:.3}[kJ/kgK]", R/1000.0);
 
-    //let P0 : f64 = 102.0e3;//全域亜音速
-    let P0 = 150.0e3;//衝撃波
-    let T0 : f64 = 290.0;// + 273.15;//K
+    let mut P0 = 102.0e3;//全域亜音速
+    //let P0 = 150.0e3;//衝撃波
     let Pa = 101.325e3;//Pa
+    let mut PbP0 = Pa / P0;
 
-    let PbP0 = Pa / P0;
-    println!("PbP0 = {:.3}", PbP0);
+    let mut i = 0;
+    while PbP0 > 0.4  {
+        PbP0 = Pa / P0;
+        println!("PbP0 = {:.3}", PbP0);
 
-    let mut Me = 0.0;
-    let mut Mth = 0.0;
+        let nagare = check_nagare_keitai(&nozzle, &kappa, PbP0);
+        let mut quans = calc_Mx(&nozzle, &kappa, PbP0, nagare);
 
-    let nagare = check_nagare_keitai(&nozzle, &kappa, PbP0);
-    let mut quans = calc_Mx(&nozzle, &kappa, PbP0, nagare);
+        //結果の出力
+        let title = format!("./out/{}.png", i);
+        let root = BitMapBackend::new(&title, (800, 600)).into_drawing_area();
+        root.fill(&WHITE)?;
+        let mut chart = ChartBuilder::on(&root)
+            .margin(20)
+            .x_label_area_size(10)
+            .y_label_area_size(10)
+            .build_cartesian_2d(-1f64..50f64, -1.0..50f64)?;
+        
+        chart
+            .configure_mesh()
+            .disable_x_mesh()
+            .disable_y_mesh()
+            .draw()?;
+        let plotarea = chart.plotting_area();
 
-    //結果の出力
-    let root = BitMapBackend::new("./out.png", (800, 600)).into_drawing_area();
-    root.fill(&WHITE)?;
-    let mut chart = ChartBuilder::on(&root)
-        .margin(20)
-        .x_label_area_size(10)
-        .y_label_area_size(10)
-        .build_cartesian_2d(-1f64..50f64, -1.0..50f64)?;
-    
-    chart
-        .configure_mesh()
-        .disable_x_mesh()
-        .disable_y_mesh()
-        .draw()?;
-    let plotarea = chart.plotting_area();
-    let range = plotarea.get_pixel_range();
-
-    for q in quans {
-        let mut r = 0.0;
-        while r < ( q.rx * 1000.0 ) {
-            plotarea.draw_pixel((q.x * 1000.0, r), &HSLColor( 0.50 +0.3*q.Mx, 1.0, 0.5));
-            r += 0.001;
+        for q in quans {
+            let mut r = 0.0;
+            while r < ( q.rx * 1000.0 ) {
+                plotarea.draw_pixel((q.x * 1000.0, r), &HSLColor( 0.50 +0.1*q.Mx, 1.0, 0.45));
+                r += 0.01;
+            }
         }
+
+        P0 += 1.0e3;
+        i += 1;
     }
-    /*
-    let mut f = std::fs::File::create(format!("./{}.csv", PbP0))?;
-    for q in quans {
-       writeln!(f, "{},{}, {}", q.x, q.Mx, q.rx)?;
-    }
-    f.flush()?;
-    */
+
     Ok(())
 }
