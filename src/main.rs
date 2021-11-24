@@ -69,9 +69,16 @@ impl Nozzle{
 }
 
 fn siki_7_21(kappa : &f64, pdp0: &f64) -> f64{
+    //pdp0からAe/A*=
     ( ( (kappa - 1.0) / 2.0 )*( 2.0 / ( kappa + 1.0 ) ).powf( ( kappa + 1.0 )/( kappa - 1.0) )
     / ( pdp0.powf(2.0 / kappa ) - pdp0.powf( ( kappa + 1.0 )/kappa ) )  ).powf(0.5)
 }
+fn siki_8_25(kappa : &f64, M1: f64) -> f64 {
+    //p2: 衝撃は直後の静圧 p0:ノズル上流全圧
+    let p2p0 = (2.0 * kappa * M1.powf(2.0) - (kappa - 1.0))/(kappa + 1.0)*(1.0 + (kappa - 1.0)/2.0 * M1.powf(2.0)).powf(-(kappa/ (kappa - 1.0)));
+    return p2p0;
+}
+
 fn calc_pcp0(kappa : &f64) -> f64 {
     let pcp0 = (2.0 / (kappa + 1.0)).powf(kappa / (kappa - 1.0));
     println!("p*/p0 = {:.3}", pcp0);
@@ -107,10 +114,9 @@ fn calc_pj_by_p0(kappa: &f64, AeAc: &f64) -> f64{
     println!("pj/p0 = {:.3}", pjp0);
     return pjp0;
 }
-fn calc_ph_by_p0 (kappa: &f64, PbP0: &f64) -> f64{
-    let Me = (2.0/(kappa - 1.0)*(PbP0.powf((1.0 - kappa)/kappa) -1.0)).powf(0.5);
-
-    let php0 = (2.0 * kappa * Me.powf(2.0) - (kappa - 1.0))/(kappa + 1.0)*(1.0 + (kappa - 1.0)/2.0 * Me.powf(2.0)).powf(-(kappa/ (kappa - 1.0)));
+fn calc_ph_by_p0 (kappa: &f64, AeAc: &f64) -> f64{
+    let Me = 1.0;
+    let mut php0 = siki_8_25(&kappa, calc_super_sonic_M2_from_M1_by_AA(&kappa, &Me, AeAc)); 
     println!("ph/p0 = {:.3}", php0);
     return php0;
 }
@@ -192,7 +198,7 @@ fn main() -> Result<(), Box<std::error::Error>>{
 
     let pdp0 = calc_pd_by_p0(&kappa, &AeAth); 
     let pjp0 = calc_pj_by_p0(&kappa, &AeAth); 
-    let php0 = calc_ph_by_p0(&kappa, &PbP0);      
+    let php0 = calc_ph_by_p0(&kappa, &AeAth);      
 
     let mut Me = 0.0;
     let mut Mth = 0.0;
