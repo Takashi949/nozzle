@@ -1,28 +1,41 @@
-use std::fs::File;
-use std::io::{self, BufRead, Write, BufReader};
-
+use std::io::Write;
+#[derive(Default)]
 struct Nozzle{
-    Dc : f64,
+    Di : f64,
+    Ai : f64,
+
+    Dth : f64,
+    Ath : f64,
+    xth : f64,
+
     De : f64,
-    Le : f64,
     Ae : f64,
-    Ac : f64,
+    xe : f64,
 }
 
 impl Nozzle{
-    fn calcAx(&self, x: f64) -> f64{
-        let Dx = (self.De - self.Dc) * x / self.Le + self.Dc;
-        return std::f64::consts::PI / 4.0 * Dx.powf(2.0); 
+    fn new(Di : f64, Dth:f64, xth : f64, De:f64, xe:f64) -> Nozzle {
+        Nozzle {Di, Dth, xth, De, xe, ..Default::default()}
     }
     fn new_by_AeAc(AeAc:f64) -> Nozzle {
-        Nozzle {Dc : 0.0, De: 0.0, Le: 0.0, Ae: AeAc, Ac: 1.0}
+        Nozzle {Ae: AeAc, Ath: 1.0, ..Default::default()}
     }
-    fn new(Dcm:f64, Dem:f64, Lem:f64) -> Nozzle {
-        Nozzle {Dc : Dcm, De: Dem, Le: Lem, Ae: 0.0, Ac: 0.0}
+
+    //先細部
+    fn calc_AxC(&self, x: &f64) -> f64 {
+        let Dx = (self.De - self.Dth) * x / self.xe + self.Dth;
+        return std::f64::consts::PI / 4.0 * Dx.powf(2.0); 
     }
-    fn calc_x (&self, AAc: &f64) -> f64 {
+    //末広部
+    fn calc_AxD(&self, x: f64) -> f64{
+        let x_xth = x - self.xth; 
+        let Dx = (self.De - self.Dth) * x_xth / self.xe + self.Dth;
+        return std::f64::consts::PI / 4.0 * Dx.powf(2.0); 
+    }
+
+    fn calc_xD (&self, AAc: &f64) -> f64 {
         let mut x = 0.0;
-        while ( self.calcAx(x) / self.Ac - AAc ) < 1.0e-6
+        while ( self.calc_AxD(x) / self.Ath - AAc ) < 1.0e-6
         {
             x += 0.001;
         }  
@@ -31,9 +44,10 @@ impl Nozzle{
     }
 
     fn init(&mut self){
+        self.Ai = std::f64::consts::PI / 4.0 * self.Di.powf(2.0);
         self.Ae = std::f64::consts::PI / 4.0 * self.De.powf(2.0); 
-        self.Ac = std::f64::consts::PI / 4.0 * self.Dc.powf(2.0); 
-        println!("Ae = {:.2}[mm2]   A* = {:.2}[mm2]", self.Ae*1.0e6, self.Ac*1.0e6);
+        self.Ath = std::f64::consts::PI / 4.0 * self.Dth.powf(2.0); 
+        println!("Ae = {:.2}[mm2]   Ath = {:.2}[mm2]", self.Ae*1.0e6, self.Ath*1.0e6);
     }
 }
 
@@ -128,9 +142,9 @@ fn calc_AAc(kappa : &f64, M: &f64) -> f64 {
 }
 
 fn main() -> Result<(), Box<std::error::Error>>{
-    let mut nozzle = Nozzle::new(1.0e-2, 1.5e-2, 2.0e-2);
+    let mut nozzle = Nozzle::new(20.0e-3, 10.0e-3, 10.0e-3, 40.0e-3, 40.0e-3);
     nozzle.init();
-    let AeAc = &nozzle.Ae / &nozzle.Ac;
+    let AeAc = &nozzle.Ae / &nozzle.Ath;
     //let AeAc = 2.403;
 
     let kappa : f64 = 1.40;
@@ -189,7 +203,7 @@ fn main() -> Result<(), Box<std::error::Error>>{
             let M1 = calc_M_before_shock(&kappa, &PbP0);
             let M2 = calc_M_after_shock(&kappa, &M1);
             AmAc = calc_AAc(&kappa, &M1);//衝撃波発生位置の断面積比
-            let xM = nozzle.calc_x(&AmAc);//衝撃波の発生位置
+            let xM = nozzle.calc_xD(&AmAc);//衝撃波の発生位置
             let AeAm = AeAc / AmAc;
             Me = calc_sub_sonic_M2_from_M1_by_AA(&kappa, &M2, &AeAm);
         }
@@ -211,10 +225,10 @@ fn main() -> Result<(), Box<std::error::Error>>{
     const N : usize =  256 * 2;
     let mut Mac_Array : [f64; N] = [0.0; N];
     Mac_Array[0] = Mth;
-    let dx = &nozzle.Le / N as f64;
+    let dx = &nozzle.xe / N as f64;
 
     for i in 1..N {
-        let AxAc = nozzle.calcAx(dx * i as f64) / nozzle.Ac;
+        let AxAc = nozzle.calc_AxD(dx * i as f64) / nozzle.Ath;
         let mut kyokushoM = 0.0; 
         if Me < 1.0 && isIsentropic{
             //等エントロピー、出口で亜音速
