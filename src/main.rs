@@ -89,6 +89,25 @@ fn calc_super_sonic_M2_from_M1_by_AA(kappa: &f64, M1: &f64, A2A1: &f64) -> f64 {
     //println!("M2 = {:.3}", M2);
     return M2;
 }
+fn calc_M_before_shock(kappa: &f64, PeP0: &f64) -> f64 {
+    //(8.18)
+    let mut M1 : f64 = 1.0;
+    while (
+            ((kappa + 1.0) * M1.powf(2.0) / ((kappa - 1.0) * M1.powf(2.0) + 2.0)).powf(kappa / (kappa - 1.0))
+          * ((kappa + 1.0)/(2.0 * kappa *  M1.powf(2.0) - (kappa - 1.0) )).powf( 1.0/(kappa -1.0) )
+          ) - PeP0 > ERROR
+    {
+        M1 += 0.01;   
+    }
+    println!("上流M1 = {:.3}", M1);
+    return M1;
+}
+fn calc_M_after_shock(kappa: &f64, M1: &f64) -> f64 {
+    //(8.18)
+    let M2 = ( ((kappa -1.0) * M1.powf(2.0) + 2.0) / (2.0 * kappa * M1.powf(2.0) - (kappa - 1.0)) ).powf(0.5);
+    println!("下流M2 = {:.3}", M2);
+    return M2;   
+}
 fn calc_AAc(kappa : &f64, M: &f64) -> f64 {
     let AAc = 1.0 / M * ( ((kappa - 1.0)*M.powf(2.0) + 2.0)/ (kappa + 1.0)).powf( (kappa + 1.0)/(2.0 * (kappa - 1.0)) );
     println!("A/Ac = {:.3}", AAc);
@@ -151,24 +170,6 @@ fn calc_M (kappa : &f64, pp0: &f64) -> f64 {
     println!("M = {:.3}", M);
     return M;
 } 
-fn calc_M_before_shock(kappa: &f64, PeP0: &f64) -> f64 {
-    let mut M1 : f64 = 1.0;
-    while (
-            ((kappa + 1.0) * M1.powf(2.0) / ((kappa - 1.0) * M1.powf(2.0) + 2.0)).powf(kappa / (kappa - 1.0))
-          * ((kappa + 1.0)/(2.0 * kappa *  M1.powf(2.0) - (kappa - 1.0) )).powf( 1.0/(kappa -1.0) )
-          ) - PeP0 > ERROR
-    {
-        M1 += 0.01;   
-    }
-    println!("上流M1 = {:.3}", M1);
-    return M1;
-}
-fn calc_M_after_shock(kappa: &f64, M1: &f64) -> f64 {
-    let M2 = ( ((kappa -1.0) * M1.powf(2.0) + 2.0) / (2.0 * kappa * M1.powf(2.0) - (kappa - 1.0)) ).powf(0.5);
-    println!("下流M2 = {:.3}", M2);
-    return M2;   
-}
-
 
 fn main() -> Result<(), Box<std::error::Error>>{
     let mut nozzle = Nozzle::new(20.0e-3, 10.0e-3, 10.0e-3, 17.320508e-3, 40.0e-3);
