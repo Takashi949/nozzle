@@ -97,30 +97,30 @@ fn calc_M2_from_M1_by_AA(kappa: f64, M1: f64, A2A1: f64, isSuper: bool) -> f64 {
         let kmkp = km1 / kp1;
         let kkp1 = 2.0 / kp1;
 
-        let fx = |M2: f64|-> f64 {
+        let f = |M2: f64|-> f64 {
             1.0 / M2 * ( kmkp * M2.powf(2.0) + kkp1 ).powf(pwr) - A2A1
         };
-        let dfx = |M2 : f64| -> f64 {
+        let df = |M2 : f64| -> f64 {
             let mM2k = kmkp * M2.powf(2.0) + kkp1;
             2.0 * kmkp * pwr * (mM2k).powf(pwr - 1.0) - 1.0 / M2.powf(2.0) *(mM2k).powf(pwr) 
         };
-        while fx(M2).abs() > ERROR
+        while f(M2).abs() > ERROR
         {
-            M2 -= fx(M2)/dfx(M2);
+            M2 -= f(M2)/df(M2);//ニュートン法で更新
         }
     }
     else {
-        while (
-                A2A1 -
-                //M1 / M2 * ( ( (kappa - 1.0) * M2.powf(2.0) + 2.0 )/( (kappa - 1.0) * M1.powf(2.0) + 2.0 ) ).powf( (kappa + 1.0)/(2.0 * (kappa - 1.0))
-                M1 / M2 * ( ( km1 * M2.powf(2.0) + 2.0 )/( km1 * M1.powf(2.0) + 2.0 ) ).powf(pwr)
-            ) > ERROR
+        let f = |M1:f64, M2:f64| -> f64 {
+            M1 / M2 * ((km1 * M2.powf(2.0) + 2.0)/(km1 * M1.powf(2.0) + 2.0)).powf(pwr) - A2A1
+        };
+        let df = |M1: f64, M2:f64| -> f64 {
+            let M22 = M2.powf(2.0);
+            let mM2mM2 = (km1 * M22 + 2.0)/(km1 * M1.powf(2.0) + 2.0);
+            2.0 * km1 * pwr * M1 * mM2mM2.powf(pwr - 1.0)- M1 / M22 * mM2mM2.powf(pwr)
+        };
+        while f(M1, M2).abs() > ERROR
         {
-            if isSuper{
-                M2 += delta;
-            } else {
-                M2 -= delta;
-            }
+            M2 -= f(M1, M2)/df(M1, M2);//ニュートン法で更新
         }
     }
     //println!("M2 = {:.3}", M2);
@@ -292,7 +292,7 @@ fn main() -> Result<(), Box<std::error::Error>>{
     //let mut P0 = 102.0e3;//全域亜音速
     //let P0 = 150.0e3;//衝撃波
     let P0 = 1000e3;
-    let Pa = 989.325e3;//Pa
+    let Pa = 400.325e3;//Pa
     let mut PbP0 = Pa / P0;
     println!("PbP0 = {:.3}", PbP0);
 
