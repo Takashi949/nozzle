@@ -46,26 +46,26 @@ impl Nozzle{
     }
 
     //先細部
-    fn calc_AxC(&self, x: &f64) -> f64 {
+    fn calc_AxC(&self, x: f64) -> f64 {
         return std::f64::consts::PI / 4.0 * (self.calc_DxC(x)).powf(2.0); 
     }
-    fn calc_DxC(&self, x:&f64) -> f64{
+    fn calc_DxC(&self, x:f64) -> f64{
         let Dx = (self.Dth - self.Di) * x / self.xth + self.Di;
         return Dx;
     }
     //末広部
-    fn calc_AxD(&self, x: &f64) -> f64{
-        return std::f64::consts::PI / 4.0 * self.calc_DxD(&x).powf(2.0); 
+    fn calc_AxD(&self, x: f64) -> f64{
+        return std::f64::consts::PI / 4.0 * self.calc_DxD(x).powf(2.0); 
     }
-    fn calc_DxD(&self, x: &f64) -> f64{
+    fn calc_DxD(&self, x: f64) -> f64{
         let x_xth = x - self.xth; 
         let Dx = (self.De - self.Dth) * x_xth / (self.xe - self.xth) + self.Dth;
         return Dx; 
     }
 
-    fn calc_xD (&self, AAc: &f64) -> f64 {
+    fn calc_xD (&self, AAc: f64) -> f64 {
         let mut x = 0.0;
-        while ( self.calc_AxD(&x) / self.Ath - AAc ) < ERROR
+        while ( self.calc_AxD(x) / self.Ath - AAc ) < ERROR
         {
             x += 0.001;
         }  
@@ -80,7 +80,7 @@ impl Nozzle{
         println!("Ae = {:.2}[mm2]   Ath = {:.2}[mm2]", self.Ae*1.0e6, self.Ath*1.0e6);
     }
 }
-fn calc_sub_sonic_M2_from_M1_by_AA(kappa: &f64, M1: &f64, A2A1: &f64) -> f64 {
+fn calc_sub_sonic_M2_from_M1_by_AA(kappa: f64, M1: f64, A2A1: f64) -> f64 {
     let mut M2 :f64 = 1.0;
     while (
          M1 / M2 * ( ( (kappa - 1.0) * M2.powf(2.0) + 2.0 )/( (kappa - 1.0) * M1.powf(2.0) + 2.0 ) ).powf( (kappa + 1.0)/(2.0 * (kappa - 1.0)) )
@@ -91,7 +91,7 @@ fn calc_sub_sonic_M2_from_M1_by_AA(kappa: &f64, M1: &f64, A2A1: &f64) -> f64 {
     //println!("M2 = {:.3}", M2);
     return M2;
 }
-fn calc_super_sonic_M2_from_M1_by_AA(kappa: &f64, M1: &f64, A2A1: &f64) -> f64 {
+fn calc_super_sonic_M2_from_M1_by_AA(kappa: f64, M1: f64, A2A1: f64) -> f64 {
     let mut M2 :f64 = 1.0;
     while (
          M1 / M2 * ( ( (kappa - 1.0) * M2.powf(2.0) + 2.0 )/( (kappa - 1.0) * M1.powf(2.0) + 2.0 ) ).powf( (kappa + 1.0)/(2.0 * (kappa - 1.0)) )
@@ -102,7 +102,7 @@ fn calc_super_sonic_M2_from_M1_by_AA(kappa: &f64, M1: &f64, A2A1: &f64) -> f64 {
     //println!("M2 = {:.3}", M2);
     return M2;
 }
-fn calc_M_before_shock(kappa: &f64, PeP0: &f64) -> f64 {
+fn calc_M_before_shock(kappa: f64, PeP0: f64) -> f64 {
     //(8.24)
     let mut M1 : f64 = 1.0;
     while (
@@ -115,80 +115,80 @@ fn calc_M_before_shock(kappa: &f64, PeP0: &f64) -> f64 {
     println!("上流M1 = {:.3}", M1);
     return M1;
 }
-fn calc_M_after_shock(kappa: &f64, M1: &f64) -> f64 {
+fn calc_M_after_shock(kappa: f64, M1: f64) -> f64 {
     //(8.18)
     let M2 = ( ((kappa -1.0) * M1.powf(2.0) + 2.0) / (2.0 * kappa * M1.powf(2.0) - (kappa - 1.0)) ).powf(0.5);
     println!("下流M2 = {:.3}", M2);
     return M2;   
 }
-fn calc_AAc(kappa : &f64, M: &f64) -> f64 {
+fn calc_AAc(kappa : f64, M: f64) -> f64 {
     let AAc = 1.0 / M * ( ((kappa - 1.0)*M.powf(2.0) + 2.0)/ (kappa + 1.0)).powf( (kappa + 1.0)/(2.0 * (kappa - 1.0)) );
     println!("A/Ac = {:.3}", AAc);
     return AAc;
 }
-fn siki_7_21(kappa : &f64, pdp0: &f64) -> f64{
+fn siki_7_21(kappa : f64, pdp0: f64) -> f64{
     //pdp0からAe/A*=
     ( ( (kappa - 1.0) / 2.0 )*( 2.0 / ( kappa + 1.0 ) ).powf( ( kappa + 1.0 )/( kappa - 1.0) )
     / ( pdp0.powf(2.0 / kappa ) - pdp0.powf( ( kappa + 1.0 )/kappa ) )  ).powf(0.5)
 }
-fn siki_8_25(kappa : &f64, M1: f64) -> f64 {
+fn siki_8_25(kappa : f64, M1: f64) -> f64 {
     //p2: 衝撃は直後の静圧 p0:ノズル上流全圧
     let p2p0 = (2.0 * kappa * M1.powf(2.0) - (kappa - 1.0))/(kappa + 1.0)*(1.0 + (kappa - 1.0)/2.0 * M1.powf(2.0)).powf(-(kappa/ (kappa - 1.0)));
     return p2p0;
 }
 
-fn calc_pcp0(kappa : &f64) -> f64 {
+fn calc_pcp0(kappa : f64) -> f64 {
     let pcp0 = (2.0 / (kappa + 1.0)).powf(kappa / (kappa - 1.0));
     println!("p*/p0 = {:.3}", pcp0);
     return pcp0;
 }
 
-fn calcPc(P0: &f64, gammma: &f64) -> f64 {
+fn calcPc(P0: f64, gammma: f64) -> f64 {
     let pc = P0* calc_pcp0(gammma);
     println!("p* = {:.2}[kPa]", pc/1000.0);
     return pc;
 }
-fn calcTc(T0: &f64, gammma : &f64 ) -> f64{
+fn calcTc(T0: f64, gammma : f64 ) -> f64{
     let Tc = T0*( 2.0 / (gammma + 1.0) );
     println!("T* = {:.2}[K]", Tc);
     return Tc;
 }
 
-fn calc_pd_by_p0(kappa: &f64, AeAc: &f64) -> f64{
-    let mut pdp0:f64 = calc_pcp0(&kappa);
-    while ( AeAc - siki_7_21(kappa, &pdp0) ).abs() > ERROR
+fn calc_pd_by_p0(kappa: f64, AeAc: f64) -> f64{
+    let mut pdp0:f64 = calc_pcp0(kappa);
+    while ( AeAc - siki_7_21(kappa, pdp0) ).abs() > ERROR
     {
         pdp0 += delta;
     }
     println!("pd/p0 = {:.3}", pdp0);
     return pdp0;
 }
-fn calc_pj_by_p0(kappa: &f64, AeAc: &f64) -> f64{
-    let mut pjp0:f64 = calc_pcp0(&kappa);
-    while (AeAc - siki_7_21(kappa, &pjp0) ).abs() > ERROR
+fn calc_pj_by_p0(kappa: f64, AeAc: f64) -> f64{
+    let mut pjp0:f64 = calc_pcp0(kappa);
+    while (AeAc - siki_7_21(kappa, pjp0) ).abs() > ERROR
     {
         pjp0 -= delta;
     }
     println!("pj/p0 = {:.3}", pjp0);
     return pjp0;
 }
-fn calc_ph_by_p0 (kappa: &f64, AeAc: &f64) -> f64{
+fn calc_ph_by_p0 (kappa: f64, AeAc: f64) -> f64{
     let Me = 1.0;
-    let mut php0 = siki_8_25(&kappa, calc_super_sonic_M2_from_M1_by_AA(&kappa, &Me, AeAc)); 
+    let mut php0 = siki_8_25(kappa, calc_super_sonic_M2_from_M1_by_AA(kappa, Me, AeAc)); 
     println!("ph/p0 = {:.3}", php0);
     return php0;
 }
-fn calc_M (kappa : &f64, pp0: &f64) -> f64 {
+fn calc_M (kappa : f64, pp0: f64) -> f64 {
     let M = (2.0/(kappa - 1.0)*(pp0.powf((1.0 - kappa)/kappa) -1.0)).powf(0.5);
     //println!("M = {:.3}", M);
     return M;
 } 
 
-fn check_nagare_keitai(nozzle : &Nozzle, kappa : &f64, PbP0: f64) -> NAGARE{
+fn check_nagare_keitai(nozzle : &Nozzle, kappa : f64, PbP0: f64) -> NAGARE{
     let AeAth = &nozzle.Ae / &nozzle.Ath;
-    let pdp0 = calc_pd_by_p0(&kappa, &AeAth); 
-    let pjp0 = calc_pj_by_p0(&kappa, &AeAth); 
-    let php0 = calc_ph_by_p0(&kappa, &AeAth);   
+    let pdp0 = calc_pd_by_p0(kappa, AeAth); 
+    let pjp0 = calc_pj_by_p0(kappa, AeAth); 
+    let php0 = calc_ph_by_p0(kappa, AeAth);   
 
     if pdp0 <= PbP0 && PbP0 < 1.0 {
         //亜音速流
@@ -200,6 +200,7 @@ fn check_nagare_keitai(nozzle : &Nozzle, kappa : &f64, PbP0: f64) -> NAGARE{
             println!("スロートで音速、その他で亜音速");
             return NAGARE::MthG1MeL1;
         }
+        
     }
     else{ 
         //スロートで音速
@@ -228,7 +229,7 @@ fn check_nagare_keitai(nozzle : &Nozzle, kappa : &f64, PbP0: f64) -> NAGARE{
     return NAGARE::humei;
 }
 
-fn calc_Mx(nozzle : &Nozzle, kappa : &f64, PbP0: f64, nagare: NAGARE) -> Vec<quantity>{
+fn calc_Mx(nozzle : &Nozzle, kappa : f64, PbP0: f64, nagare: NAGARE) -> Vec<quantity>{
     let AeAth = &nozzle.Ae / &nozzle.Ath;
     let mut Mth = 1.0;//MthL1のときだけ変更
     let mut Me = 0.0;
@@ -239,22 +240,22 @@ fn calc_Mx(nozzle : &Nozzle, kappa : &f64, PbP0: f64, nagare: NAGARE) -> Vec<qua
 
     match nagare {
         NAGARE::MthL1 => {
-            Mth = calc_M(&kappa, &PbP0);
-            Me = calc_sub_sonic_M2_from_M1_by_AA(&kappa, &Mth, &AeAth);
+            Mth = calc_M(kappa, PbP0);
+            Me = calc_sub_sonic_M2_from_M1_by_AA(kappa, Mth, AeAth);
         },
         NAGARE::MthG1MeL1 => {
-            Me = calc_sub_sonic_M2_from_M1_by_AA(&kappa, &Mth, &AeAth);
+            Me = calc_sub_sonic_M2_from_M1_by_AA(kappa, Mth, AeAth);
         },
         NAGARE::suehiro => {
-            let M1 = calc_M_before_shock(&kappa, &PbP0);
-            M2 = calc_M_after_shock(&kappa, &M1);
-            AmAc = calc_AAc(&kappa, &M1);//衝撃波発生位置の断面積比
-            let xM = nozzle.calc_xD(&AmAc);//衝撃波の発生位置
+            let M1 = calc_M_before_shock(kappa, PbP0);
+            M2 = calc_M_after_shock(kappa, M1);
+            AmAc = calc_AAc(kappa, M1);//衝撃波発生位置の断面積比
+            let xM = nozzle.calc_xD(AmAc);//衝撃波の発生位置
             let AeAm = AeAth / AmAc;
-            Me = calc_sub_sonic_M2_from_M1_by_AA(&kappa, &M2, &AeAm);
+            Me = calc_sub_sonic_M2_from_M1_by_AA(kappa, M2, AeAm);
         },
         _=>{
-            Me = calc_M(kappa, &PbP0);
+            Me = calc_M(kappa, PbP0);
         }
     }
     println!("Me_max = {:.3}    Mth = {:.3}", Me, Mth);
@@ -270,34 +271,34 @@ fn calc_Mx(nozzle : &Nozzle, kappa : &f64, PbP0: f64, nagare: NAGARE) -> Vec<qua
         if x <= nozzle.xth {
             //先細部の計算
             // 状態2:x     状態1:th
-            let AxAth = nozzle.calc_AxC(&x) / nozzle.Ath;
-            rx = nozzle.calc_DxC(&x) / 2.0;
-            Mx = calc_sub_sonic_M2_from_M1_by_AA(&kappa, &Mth, &AxAth);
+            let AxAth = nozzle.calc_AxC(x) / nozzle.Ath;
+            rx = nozzle.calc_DxC(x) / 2.0;
+            Mx = calc_sub_sonic_M2_from_M1_by_AA(kappa, Mth, AxAth);
         }
         else {
             //末広部の計算
-            let AxAth = nozzle.calc_AxD(&x) / nozzle.Ath;
-            rx = nozzle.calc_DxD(&x) / 2.0;
+            let AxAth = nozzle.calc_AxD(x) / nozzle.Ath;
+            rx = nozzle.calc_DxD(x) / 2.0;
 
             if let NAGARE::suehiro = nagare{
                 //非等エントロピー
                 if AxAth < AmAc {
                     //衝撃波の上流 
-                    Mx = calc_super_sonic_M2_from_M1_by_AA(&kappa, &Mth, &AxAth);
+                    Mx = calc_super_sonic_M2_from_M1_by_AA(kappa, Mth, AxAth);
                 }
                 else {
                     //衝撃波の下流
                     let AxAm = AxAth / AmAc;
-                    Mx = calc_sub_sonic_M2_from_M1_by_AA(&kappa, &M2, &AxAm);            
+                    Mx = calc_sub_sonic_M2_from_M1_by_AA(kappa, M2, AxAm);            
                 }
             }
             else if Me < 1.0{
                 //等エントロピー、亜音速
-                Mx = calc_sub_sonic_M2_from_M1_by_AA(&kappa, &Mth, &AxAth);
+                Mx = calc_sub_sonic_M2_from_M1_by_AA(kappa, Mth, AxAth);
             }
             else {
                 //等エントロピー、超音速
-                Mx = calc_super_sonic_M2_from_M1_by_AA(&kappa, &Mth, &AxAth);
+                Mx = calc_super_sonic_M2_from_M1_by_AA(kappa, Mth, AxAth);
             }
         }
         
@@ -332,8 +333,8 @@ fn main() -> Result<(), Box<std::error::Error>>{
         PbP0 = Pa / P0;
         println!("PbP0 = {:.3}", PbP0);
 
-        let nagare = check_nagare_keitai(&nozzle, &kappa, PbP0);
-        let mut quans = calc_Mx(&nozzle, &kappa, PbP0, nagare);
+        let nagare = check_nagare_keitai(&nozzle, kappa, PbP0);
+        let mut quans = calc_Mx(&nozzle, kappa, PbP0, nagare);
 
         //結果の出力
         let title = format!("./out/{}.png", i);
