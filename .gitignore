@@ -1,4 +1,5 @@
 /target
 *.csv
 *.xlsx
-*.png
+./*.png
+/out

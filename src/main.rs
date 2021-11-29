@@ -59,7 +59,7 @@ impl Nozzle{
     }
     fn calc_DxD(&self, x: &f64) -> f64{
         let x_xth = x - self.xth; 
-        let Dx = (self.De - self.Dth) * x_xth / self.xe + self.Dth;
+        let Dx = (self.De - self.Dth) * x_xth / (self.xe - self.xth) + self.Dth;
         return Dx; 
     }
 
@@ -103,7 +103,7 @@ fn calc_super_sonic_M2_from_M1_by_AA(kappa: &f64, M1: &f64, A2A1: &f64) -> f64 {
     return M2;
 }
 fn calc_M_before_shock(kappa: &f64, PeP0: &f64) -> f64 {
-    //(8.18)
+    //(8.24)
     let mut M1 : f64 = 1.0;
     while (
             ((kappa + 1.0) * M1.powf(2.0) / ((kappa - 1.0) * M1.powf(2.0) + 2.0)).powf(kappa / (kappa - 1.0))
@@ -257,7 +257,7 @@ fn calc_Mx(nozzle : &Nozzle, kappa : &f64, PbP0: f64, nagare: NAGARE) -> Vec<qua
             Me = calc_M(kappa, &PbP0);
         }
     }
-    println!("Me_max = {:.3}    Mth = {:.3}",Me, Mth);
+    println!("Me_max = {:.3}    Mth = {:.3}", Me, Mth);
 
     //ここから格子計算
     let mut Quans : Vec<quantity> = Vec::new();
@@ -301,7 +301,7 @@ fn calc_Mx(nozzle : &Nozzle, kappa : &f64, PbP0: f64, nagare: NAGARE) -> Vec<qua
             }
         }
         
-        if i == N-1{
+        if i == N-2{
             println!("Me = {:.3}", Mx);
         }
         let res = quantity {x, Mx, rx};
