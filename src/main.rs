@@ -83,24 +83,30 @@ fn calc_Pp(kappa : f64, M : f64) -> f64 {
     return ( 1.0 + (kappa - 1.0)/2.0 * M.powf(2.0) ).powf( kappa / (kappa - 1.0) );
 }
 fn calc_M2_from_M1_by_AA(kappa: f64, M1: f64, A2A1: f64, isSuper: bool) -> f64 {
-    let mut M2 :f64 = 1.0;
+    let mut M2:f64 = if isSuper {
+        10.0
+    }
+    else {
+        0.1
+    };
+
     let km1 = kappa - 1.0;
     let kp1 = kappa + 1.0;
     let pwr = kp1 / ( 2.0 * km1 );
     if M1 == 1.0{
         let kmkp = km1 / kp1;
         let kkp1 = 2.0 / kp1;
-        while (
-                A2A1-
-                //M1 / M2 * ( ( (kappa - 1.0) * M2.powf(2.0) + 2.0 )/( (kappa - 1.0) * M1.powf(2.0) + 2.0 ) ).powf( (kappa + 1.0)/(2.0 * (kappa - 1.0))
-                1.0 / M2 * ( kmkp * M2.powf(2.0) + kkp1 ).powf(pwr)
-            ) > ERROR
+
+        let fx = |M2: f64|-> f64 {
+            1.0 / M2 * ( kmkp * M2.powf(2.0) + kkp1 ).powf(pwr) - A2A1
+        };
+        let dfx = |M2 : f64| -> f64 {
+            let mM2k = kmkp * M2.powf(2.0) + kkp1;
+            2.0 * kmkp * pwr * (mM2k).powf(pwr - 1.0) - 1.0 / M2.powf(2.0) *(mM2k).powf(pwr) 
+        };
+        while fx(M2).abs() > ERROR
         {
-            if isSuper{
-                M2 += delta;
-            } else {
-                M2 -= delta;
-            }
+            M2 -= fx(M2)/dfx(M2);
         }
     }
     else {
@@ -286,7 +292,7 @@ fn main() -> Result<(), Box<std::error::Error>>{
     //let mut P0 = 102.0e3;//全域亜音速
     //let P0 = 150.0e3;//衝撃波
     let P0 = 1000e3;
-    let Pa = 101.325e3;//Pa
+    let Pa = 989.325e3;//Pa
     let mut PbP0 = Pa / P0;
     println!("PbP0 = {:.3}", PbP0);
 
