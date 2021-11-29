@@ -91,7 +91,7 @@ fn calc_M2_from_M1_by_AA(kappa: f64, M1: f64, A2A1: f64, isSuper: bool) -> f64 {
         let kmkp = km1 / kp1;
         let kkp1 = 2.0 / kp1;
         while (
-                A2A1 -
+                A2A1-
                 //M1 / M2 * ( ( (kappa - 1.0) * M2.powf(2.0) + 2.0 )/( (kappa - 1.0) * M1.powf(2.0) + 2.0 ) ).powf( (kappa + 1.0)/(2.0 * (kappa - 1.0))
                 1.0 / M2 * ( kmkp * M2.powf(2.0) + kkp1 ).powf(pwr)
             ) > ERROR
