@@ -1,11 +1,10 @@
 #![allow(non_snake_case)]
-use std::{io::Write, num::NonZeroI128, ops::Add, slice::Windows};
 use plotters::prelude::*;
 
 #[allow(non_upper_case_globals)]
 const ERROR :f64 = 1.0e-6;
 const N:u64 = 512 * 2;
-const NewtonMax:u64 = 100;
+const NEWTON_MAX:u64 = 100;
 
 enum NAGARE {
     MthL1,
@@ -103,7 +102,7 @@ fn calc_M2_from_M1_by_AA(kappa: f64, M1: f64, A2A1: f64, isSuper: bool) -> f64 {
         M1 * mM2mM2.powf(pwr - 1.0) - M1 / M2.powf(2.0) * mM2mM2.powf(pwr)
     };
 
-    for n in 0 .. NewtonMax {
+    for n in 0 .. NEWTON_MAX {
         //ニュートン法で更新
         M2 -= f(M1, M2)/df(M1, M2);
 
@@ -168,7 +167,7 @@ fn calc_M_before_shock(kappa: f64, PeP0: f64) -> f64 {
         return h.powf(kappa) * g * (o - p + s -r)
     };
     /*//ニュートン法で解く場合
-    for n in 0 .. NewtonMax {
+    for n in 0 .. NEWTON_MAX {
         if f_8_24(M1).abs() < ERROR {
             println!("上流M1 = {:.3}", M1);
             return M1;
@@ -328,7 +327,34 @@ fn calc_Mx(nozzle : &Nozzle, kappa : f64, PbP0: f64, nagare: NAGARE) -> Vec<quan
     }
     return Quans;
 }
-fn main() -> Result<(), Box<std::error::Error>>{
+fn resultPng(quans: Vec<quantity>, path : String) -> Result<(), Box<dyn std::error::Error>> {
+        //結果の出力
+        let root = BitMapBackend::new(&path, (800, 600)).into_drawing_area();
+        root.fill(&WHITE)?;
+        let mut chart = ChartBuilder::on(&root)
+            .margin(20)
+            .x_label_area_size(10)
+            .y_label_area_size(10)
+            .build_cartesian_2d(-1f64..50f64, -1.0..50f64)?;
+        
+        chart
+            .configure_mesh()
+            .disable_x_mesh()
+            .disable_y_mesh()
+            .draw()?;
+        let plotarea = chart.plotting_area();
+
+        for q in quans {
+            let mut r = 0.0;
+            while r < ( q.rx * 1000.0 ) {
+                plotarea.draw_pixel((q.x * 1000.0, r), &HSLColor( 0.50 +0.1*q.Mx, 1.0, 0.45))?;
+                r += 0.01;
+            }
+        }
+
+        Ok(())
+}
+fn main() {
     //let mut nozzle = Nozzle::new(20.0e-3, 10.0e-3, 10.0e-3, 14.1421356e-3, 40.0e-3);
     let mut nozzle = Nozzle::new_by_AeAc(4.0);
 
@@ -356,34 +382,10 @@ fn main() -> Result<(), Box<std::error::Error>>{
         let nagare = check_nagare_keitai(&nozzle, kappa, PbP0);
         let mut quans = calc_Mx(&nozzle, kappa, PbP0, nagare);
 
-        //結果の出力
-        let title = format!("./out/{}.png", i);
-        let root = BitMapBackend::new(&title, (800, 600)).into_drawing_area();
-        root.fill(&WHITE)?;
-        let mut chart = ChartBuilder::on(&root)
-            .margin(20)
-            .x_label_area_size(10)
-            .y_label_area_size(10)
-            .build_cartesian_2d(-1f64..50f64, -1.0..50f64)?;
-        
-        chart
-            .configure_mesh()
-            .disable_x_mesh()
-            .disable_y_mesh()
-            .draw()?;
-        let plotarea = chart.plotting_area();
-
-        for q in quans {
-            let mut r = 0.0;
-            while r < ( q.rx * 1000.0 ) {
-                plotarea.draw_pixel((q.x * 1000.0, r), &HSLColor( 0.50 +0.1*q.Mx, 1.0, 0.45));
-                r += 0.01;
-            }
-        }
+        let re = resultPng(quans, format!("./out/{}.png", i));
 
         P0 += 10.0e3;
         i += 1;
     }
-    Ok(())
 }
 
