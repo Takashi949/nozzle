@@ -20,6 +20,7 @@ enum NAGARE {
 
 #[derive(Default)]
 struct Nozzle{
+    //単位はm
     Di : f64,
     Ai : f64,
 
@@ -46,7 +47,7 @@ impl Nozzle{
         return nozzle;
     }
     fn new_by_AeAc(AeAc:f64) -> Nozzle {
-        let mut nozzle = Nozzle {Di:20e-3, Dth:10e-3, xth: 15.0e-3, De:AeAc.powf(0.5) * 10e-3, xe: 100.0e-3, ..Default::default()};
+        let mut nozzle = Nozzle {Di:20e-3, Dth:10e-3, xth: 15.0e-3, De:AeAc.powf(0.5) * 10e-3, xe: 50.0e-3, ..Default::default()};
         nozzle.init();
         return nozzle;
     }
@@ -337,20 +338,20 @@ fn main() -> Result<(), Box<std::error::Error>>{
     let R = RR/Mw;
     println!("R = {:.3}[kJ/kgK]", R/1000.0);
 
-    //let mut P0 = 102.0e3;//全域亜音速
+    let mut P0 = 102.0e3;//全域亜音速
     //let P0 = 150.0e3;//衝撃波
-    let P0 = 1000e3;
-    let Pa = 590.325e3;//Pa
+    //let P0 = 1000e3;
+    let Pa = 101.325e3;//Pa
     let mut PbP0 = Pa / P0;
     println!("PbP0 = {:.3}", PbP0);
 
-    let nagare = check_nagare_keitai(&nozzle, kappa, PbP0);
-    let mut quans = calc_Mx(&nozzle, kappa, PbP0, nagare);
+    //let nagare = check_nagare_keitai(&nozzle, kappa, PbP0);
+    //let mut quans = calc_Mx(&nozzle, kappa, PbP0, nagare);
 
-    /*
     let mut i = 0;
-    while PbP0 > 0.4  {
+    while P0 < 1000.0e3  {
         PbP0 = Pa / P0;
+        println!("PbP0 = {:.3}", PbP0);
 
         let nagare = check_nagare_keitai(&nozzle, kappa, PbP0);
         let mut quans = calc_Mx(&nozzle, kappa, PbP0, nagare);
@@ -380,11 +381,9 @@ fn main() -> Result<(), Box<std::error::Error>>{
             }
         }
 
-        P0 += 1.0e3;
+        P0 += 10.0e3;
         i += 1;
     }
-    */
-
     Ok(())
 }
 
