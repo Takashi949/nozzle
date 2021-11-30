@@ -93,38 +93,27 @@ fn calc_M2_from_M1_by_AA(kappa: f64, M1: f64, A2A1: f64, isSuper: bool) -> f64 {
     let km1 = kappa - 1.0;
     let kp1 = kappa + 1.0;
     let pwr = kp1 / ( 2.0 * km1 );
-    if M1 == 1.0{
-        let kmkp = km1 / kp1;
-        let kkp1 = 2.0 / kp1;
 
-        let f = |M2: f64|-> f64 {
-            1.0 / M2 * ( kmkp * M2.powf(2.0) + kkp1 ).powf(pwr) - A2A1
-        };
-        let df = |M2 : f64| -> f64 {
-            let mM2k = kmkp * M2.powf(2.0) + kkp1;
-            2.0 * kmkp * pwr * (mM2k).powf(pwr - 1.0) - 1.0 / M2.powf(2.0) *(mM2k).powf(pwr) 
-        };
-        while f(M2).abs() > ERROR
-        {
-            M2 -= f(M2)/df(M2);//ニュートン法で更新
+    let f = |M1:f64, M2:f64| -> f64 {
+        M1 / M2 * ((km1 * M2.powf(2.0) + 2.0)/(km1 * M1.powf(2.0) + 2.0)).powf(pwr) - A2A1
+    };
+    let df = |M1: f64, M2:f64| -> f64 {
+        let mM2mM2 = (km1 * M2.powf(2.0) + 2.0)/(km1 * M1.powf(2.0) + 2.0);
+        M1 * mM2mM2.powf(pwr - 1.0) - M1 / M2.powf(2.0) * mM2mM2.powf(pwr)
+    };
+
+    for n in 0 .. 15 {
+        //収束していたらリターン
+        if f(M1, M2).abs() < ERROR {
+            //println!("M2 = {:.3}", M2);
+            return M2;
         }
+
+        //ニュートン法で更新
+        M2 -= f(M1, M2)/df(M1, M2);
     }
-    else {
-        let f = |M1:f64, M2:f64| -> f64 {
-            M1 / M2 * ((km1 * M2.powf(2.0) + 2.0)/(km1 * M1.powf(2.0) + 2.0)).powf(pwr) - A2A1
-        };
-        let df = |M1: f64, M2:f64| -> f64 {
-            let M22 = M2.powf(2.0);
-            let mM2mM2 = (km1 * M22 + 2.0)/(km1 * M1.powf(2.0) + 2.0);
-            2.0 * km1 * pwr * M1 * mM2mM2.powf(pwr - 1.0)- M1 / M22 * mM2mM2.powf(pwr)
-        };
-        while f(M1, M2).abs() > ERROR
-        {
-            M2 -= f(M1, M2)/df(M1, M2);//ニュートン法で更新
-        }
-    }
-    //println!("M2 = {:.3}", M2);
-    return M2;
+    println!("収束しない");
+    return -1.0;//Error　ニュートン法が振動
 }
 
 fn calc_M_before_shock(kappa: f64, PeP0: f64) -> f64 {
@@ -292,7 +281,7 @@ fn main() -> Result<(), Box<std::error::Error>>{
     //let mut P0 = 102.0e3;//全域亜音速
     //let P0 = 150.0e3;//衝撃波
     let P0 = 1000e3;
-    let Pa = 400.325e3;//Pa
+    let Pa = 490.325e3;//Pa
     let mut PbP0 = Pa / P0;
     println!("PbP0 = {:.3}", PbP0);
 
@@ -339,3 +328,4 @@ fn main() -> Result<(), Box<std::error::Error>>{
 
     Ok(())
 }
+
