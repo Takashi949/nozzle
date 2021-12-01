@@ -76,8 +76,8 @@ impl Nozzle{
         println!("Ae = {:.2}[mm2]   Ath = {:.2}[mm2]", self.Ae*1.0e6, self.Ath*1.0e6);
     }
 }
-fn calc_pP(kappa : f64, M : f64) -> f64 {
-    return ( 1.0 + (kappa - 1.0)/2.0 * M.powf(2.0) ).powf( -kappa / (kappa - 1.0) );
+fn calc_pP(κ : f64, M : f64) -> f64 {
+    return ( 1.0 + (κ - 1.0)/2.0 * M.powf(2.0) ).powf( -κ / (κ - 1.0) );
 }
 fn calc_Pp(kappa : f64, M : f64) -> f64 {
     return ( 1.0 + (kappa - 1.0)/2.0 * M.powf(2.0) ).powf( kappa / (kappa - 1.0) );
