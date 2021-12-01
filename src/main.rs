@@ -98,8 +98,8 @@ fn calc_M2_from_M1_by_AA(κ: f64, M1: f64, A2A1: f64, isSuper: bool) -> f64 {
         M1 / M2 * ((km1 * M2.powf(2.0) + 2.0)/(km1 * M1.powf(2.0) + 2.0)).powf(pwr) - A2A1
     };
     let df = |M1: f64, M2:f64| -> f64 {
-        let mM2mM2 = (km1 * M2.powf(2.0) + 2.0)/(km1 * M1.powf(2.0) + 2.0);
-        M1 * mM2mM2.powf(pwr - 1.0) - M1 / M2.powf(2.0) * mM2mM2.powf(pwr)
+        let λ = (km1 * M2.powf(2.0) + 2.0)/(km1 * M1.powf(2.0) + 2.0);
+        M1 * λ.powf(pwr - 1.0) - M1 / M2.powf(2.0) * λ.powf(pwr)
     };
 
     for n in 0 .. NEWTON_MAX {
