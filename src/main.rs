@@ -118,11 +118,8 @@ fn calc_M2_from_M1_by_AA(kappa: f64, M1: f64, A2A1: f64, isSuper: bool) -> f64 {
 
 fn calc_M_before_shock(kappa: f64, PeP0: f64) -> f64 {
     let mut M1 : f64 = 1.0;
-    let kp = kappa + 1.0;
-    let km = kappa - 1.0;
     let β = kappa + 1.0;
     let ω = kappa - 1.0;
-    let γ = kappa;
     let f_8_24 = |M1: f64| -> f64 {
         //D[Power[Divide[β*Power[M,2],ω*Power[M,2]+2],γ]*Divide[β,2*γ*Power[M,2]-ω],M]
         //kp -> β       km -> ω
@@ -134,47 +131,6 @@ fn calc_M_before_shock(kappa: f64, PeP0: f64) -> f64 {
         let g = β/(2.0 * kappa * M1.powf(2.0) - ω);
         return f * g - PeP0.powf(ω);
     };
-    let df_8_24w = |M1: f64| -> f64 {
-        //walframから
-        //kp -> β       km -> ω
-
-        //-(4 γ (M^4 ω - 2 (γ - 1) M^2 + ω) ((β M^2)/(M^2 ω + 2))^(γ + 1))/(M^3 (ω - 2 γ M^2)^2)
-        return -(4.0 * γ * (M1.powf(4.0) * ω - 2.0 * (γ - 1.0) * M1.powf(2.0) + ω) * ((β * M1.powf(2.0))/(M1.powf(2.0) * ω + 2.0)).powf(γ + 1.0))/(M1.powf(3.0) * (ω - 2.0 * γ *M1.powf(2.0)).powf(2.0))
-    };
-    let df_8_24 = |M1: f64| -> f64 {
-        //計算から
-        let h = kp * M1.powf(2.0) / (km * M1.powf(2.0) + 2.0);
-        let g = kp/(2.0 * kappa * M1.powf(2.0) - km);
-
-        let i = 4.0 * kp * M1 /(km * M1.powf(2.0) + 2.0).powf(2.0);
-        let l = 4.0 * km * kp / (2.0 * kappa * M1.powf(2.0) - km).powf(2.0);
-
-        //dq = k * h^(k-1) i g - h^k l
-        return kappa * h.powf(km) * i * g - h.powf(kappa) * l
-    };
-    let df_8_24l = |M1: f64| -> f64 {
-        //対数微分から
-        let h = kp * M1.powf(2.0) / (km * M1.powf(2.0) + 2.0);
-        let g = kp/(2.0 * kappa * M1.powf(2.0) - km);
-
-
-        let o = 2.0 * kappa / kp * M1;
-        let p = 2.0 * kappa * km * M1 / (km * M1.powf(2.0) + 2.0);
-        let s = 1.0 / kp;
-        let r = 4.0*kappa * M1 / (2.0* kappa * M1.powf(2.0) -km);
-
-        //dq = h^k g (o - p + s -r)
-        return h.powf(kappa) * g * (o - p + s -r)
-    };
-    /*//ニュートン法で解く場合
-    for n in 0 .. NEWTON_MAX {
-        if f_8_24(M1).abs() < ERROR {
-            println!("上流M1 = {:.3}", M1);
-            return M1;
-        }
-        //println!("M1 = {:.3}  q = {:.3} {:.3} {:.3}", M1, df_8_24(M1), df_8_24l(M1), df_8_24w(M1));
-        M1 -= f_8_24(M1)/df_8_24w(M1);   
-    }*/
 
     let mut delta = 0.1;
     while f_8_24(M1) > ERROR {
@@ -375,14 +331,14 @@ fn main() {
     //let mut quans = calc_Mx(&nozzle, kappa, PbP0, nagare);
 
     let mut i = 0;
-    while P0 < 1000.0e3  {
+    while P0 < 1.0e6  {
         PbP0 = Pa / P0;
         println!("PbP0 = {:.3}", PbP0);
 
         let nagare = check_nagare_keitai(&nozzle, kappa, PbP0);
         let mut quans = calc_Mx(&nozzle, kappa, PbP0, nagare);
 
-        let re = resultPng(quans, format!("./out/{}.png", i));
+        //let re = resultPng(quans, format!("./out/{}.png", i));
 
         P0 += 10.0e3;
         i += 1;
