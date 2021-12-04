@@ -77,6 +77,7 @@ impl Nozzle{
     }
 }
 fn calc_pP(κ : f64, M : f64) -> f64 {
+    //fo$$ \frac{p_e}{P_0}=\left(1+\frac{\kappa-1}{2}M^2\right)^{-\frac{\kappa}{\kappa\ -\ 1}} $$of
     return ( 1.0 + (κ - 1.0)/2.0 * M.powf(2.0) ).powf( -κ / (κ - 1.0) );
 }
 fn calc_Pp(κ : f64, M : f64) -> f64 {
@@ -89,16 +90,23 @@ fn calc_M2_from_M1_by_AA(κ: f64, M1: f64, A2A1: f64, isSuper: bool) -> f64 {
     else {
         0.1
     };
-
+    /*fo$$\begin{align*}
+    kp_1 &=\kappa + 1,\\
+    km_1 &=\kappa -1,\\
+    pwr  &=\frac{kp_1}{2km_1}=\frac{\kappa +1}{2\left(\kappa-1\right)}
+   \end{align*}$$of  */
     let km1 = κ - 1.0;
     let kp1 = κ + 1.0;
     let pwr = kp1 / ( 2.0 * km1 );
 
     let f = |M1:f64, M2:f64| -> f64 {
+        //fo$$\frac{M_1}{M_2}\left(\frac{km_1M_2^2+2}{km_1M_1^2+2}\right)^{pwr}-\frac{A_2}{A_1}=0$$of  
         M1 / M2 * ((km1 * M2.powf(2.0) + 2.0)/(km1 * M1.powf(2.0) + 2.0)).powf(pwr) - A2A1
     };
     let df = |M1: f64, M2:f64| -> f64 {
+        //fo$$\lambda=\frac{km_1M_2^2+2}{km_1M_1^2+2}$$of
         let λ = (km1 * M2.powf(2.0) + 2.0)/(km1 * M1.powf(2.0) + 2.0);
+        //fo$$M_1\ \lambda^{\left(pwr-1\right)}-\frac{M_1}{M_2^2}{\ \lambda}^{pwr} =0$$of  
         M1 * λ.powf(pwr - 1.0) - M1 / M2.powf(2.0) * λ.powf(pwr)
     };
 
@@ -122,11 +130,15 @@ fn calc_M_before_shock(κ: f64, PeP0: f64) -> f64 {
     let ω = κ - 1.0;
     let f_8_24 = |M1: f64| -> f64 {
         //D[Power[Divide[β*Power[M,2],ω*Power[M,2]+2],γ]*Divide[β,2*γ*Power[M,2]-ω],M]
-        //kp -> β       km -> ω
 
         /*((kappa + 1.0) * M1.powf(2.0) / ((kappa - 1.0) * M1.powf(2.0) + 2.0)).powf(kappa / (kappa - 1.0))
         * ((kappa + 1.0)/(2.0 * kappa *  M1.powf(2.0) - (kappa - 1.0) )).powf( 1.0/(kappa -1.0) )
         - PeP0*/
+        /*fo$$\begin{align*}
+        \beta &=\kappa + 1  ，\\
+        \omega &=\kappa -1 
+        \end{align*}$$of*/
+        // fo$$\left(\frac{\beta M^2}{\omega M^2+2}\right)^{κ} \frac{\beta }{2 \kappa M^2-\omega } - \frac{P_e}{P_0}^\omega = 0$$of
         let f = (β*M1.powf(2.0) / (ω*M1.powf(2.0) + 2.0)).powf(κ);
         let g = β/(2.0 * κ * M1.powf(2.0) - ω);
         return f * g - PeP0.powf(ω);
